@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(tree:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "WebSearch"
+    ]
+  }
+}

@@ -1,0 +1,2773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCP Sizing Calculator - Assessment Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&family=Red+Hat+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --rh-red: #EE0000;
+            --rh-red-dark: #A30000;
+            --rh-red-light: #FF5C5C;
+            --rh-black: #151515;
+            --rh-gray-900: #212427;
+            --rh-gray-800: #2D2D2D;
+            --rh-gray-700: #3C3F42;
+            --rh-gray-600: #4D5258;
+            --rh-gray-500: #6A6E73;
+            --rh-gray-400: #8A8D90;
+            --rh-gray-300: #B8BBBE;
+            --rh-gray-200: #D2D2D2;
+            --rh-gray-100: #F0F0F0;
+            --rh-white: #FFFFFF;
+            --rh-blue: #0066CC;
+            --rh-blue-light: #73BCF7;
+            --rh-green: #3E8635;
+            --rh-green-light: #95D58F;
+            --rh-orange: #F0AB00;
+            --rh-purple: #6753AC;
+            --rh-cyan: #009596;
+            
+            --bg-primary: var(--rh-gray-900);
+            --bg-secondary: var(--rh-gray-800);
+            --bg-tertiary: var(--rh-gray-700);
+            --text-primary: var(--rh-white);
+            --text-secondary: var(--rh-gray-300);
+            --text-muted: var(--rh-gray-400);
+            --border-color: var(--rh-gray-600);
+            --accent: var(--rh-red);
+            --accent-hover: var(--rh-red-dark);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Red Hat Text', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--rh-black) 0%, var(--rh-gray-900) 100%);
+            border-bottom: 3px solid var(--rh-red);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: var(--rh-red);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+        
+        .title-section h1 {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .title-section p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .header-meta {
+            text-align: right;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        
+        /* Navigation Tabs */
+        .nav-tabs {
+            background: var(--bg-secondary);
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        
+        .nav-tabs-inner {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 0;
+        }
+        
+        .nav-tab {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        
+        .nav-tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .nav-tab.active {
+            color: var(--rh-red);
+            border-bottom-color: var(--rh-red);
+        }
+        
+        /* Main Content */
+        .main-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+        
+        .filter-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .filter-btn:hover {
+            background: var(--rh-gray-600);
+            color: var(--text-primary);
+        }
+        
+        .filter-btn.active {
+            background: var(--rh-red);
+            border-color: var(--rh-red);
+            color: white;
+        }
+        
+        .filter-btn.active.control-plane { background: var(--rh-blue); border-color: var(--rh-blue); }
+        .filter-btn.active.infra { background: var(--rh-purple); border-color: var(--rh-purple); }
+        .filter-btn.active.storage { background: var(--rh-cyan); border-color: var(--rh-cyan); }
+        .filter-btn.active.worker { background: var(--rh-orange); border-color: var(--rh-orange); }
+        
+        .filter-count {
+            background: rgba(255,255,255,0.2);
+            padding: 0.1rem 0.5rem;
+            border-radius: 100px;
+            font-size: 0.7rem;
+        }
+        
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        
+        .summary-card.highlight {
+            border-color: var(--rh-red);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(238,0,0,0.1) 100%);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .card-icon.nodes { background: rgba(0,102,204,0.2); color: var(--rh-blue); }
+        .card-icon.cpu { background: rgba(62,134,53,0.2); color: var(--rh-green); }
+        .card-icon.memory { background: rgba(103,83,172,0.2); color: var(--rh-purple); }
+        .card-icon.pods { background: rgba(240,171,0,0.2); color: var(--rh-orange); }
+        .card-icon.storage { background: rgba(0,149,150,0.2); color: var(--rh-cyan); }
+        .card-icon.efficiency { background: rgba(238,0,0,0.2); color: var(--rh-red); }
+        
+        .card-value {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+        
+        .card-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .card-detail {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Architecture Diagram */
+        .architecture-diagram {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .architecture-title {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .architecture-title h3 {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .architecture-title p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        .architecture-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+        
+        .arch-tier {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .arch-tier-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .arch-tier-nodes {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .arch-connector {
+            width: 2px;
+            height: 25px;
+            background: linear-gradient(180deg, var(--rh-gray-600) 0%, var(--rh-gray-600) 50%, transparent 50%, transparent 100%);
+            background-size: 2px 8px;
+        }
+        
+        .arch-connector-h {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 70%;
+            height: 25px;
+            position: relative;
+        }
+        
+        .arch-connector-h::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background: var(--rh-gray-600);
+        }
+        
+        .arch-connector-h::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 12px;
+            background: var(--rh-gray-600);
+        }
+        
+        .arch-node-group {
+            background: var(--rh-gray-700);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            min-width: 130px;
+        }
+        
+        .arch-node-group:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .arch-node-group.control-plane {
+            border-color: var(--rh-blue);
+            background: linear-gradient(135deg, rgba(0,102,204,0.2) 0%, var(--rh-gray-700) 100%);
+        }
+        
+        .arch-node-group.infra {
+            border-color: var(--rh-purple);
+            background: linear-gradient(135deg, rgba(103,83,172,0.2) 0%, var(--rh-gray-700) 100%);
+        }
+        
+        .arch-node-group.storage {
+            border-color: var(--rh-cyan);
+            background: linear-gradient(135deg, rgba(0,149,150,0.2) 0%, var(--rh-gray-700) 100%);
+        }
+        
+        .arch-node-group.worker {
+            border-color: var(--rh-orange);
+            background: linear-gradient(135deg, rgba(240,171,0,0.2) 0%, var(--rh-gray-700) 100%);
+        }
+        
+        .arch-node-group .icon {
+            font-size: 1.75rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .arch-node-group .role {
+            font-family: 'Red Hat Display', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .arch-node-group .count {
+            font-size: 1.75rem;
+            font-weight: 700;
+            font-family: 'Red Hat Display', sans-serif;
+        }
+        
+        .arch-node-group.control-plane .count { color: var(--rh-blue); }
+        .arch-node-group.infra .count { color: var(--rh-purple); }
+        .arch-node-group.storage .count { color: var(--rh-cyan); }
+        .arch-node-group.worker .count { color: var(--rh-orange); }
+        
+        .arch-node-group .specs {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        .arch-node-group .node-names {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--rh-gray-600);
+            max-width: 150px;
+            word-wrap: break-word;
+        }
+        
+        .arch-middle-tier {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+        
+        .arch-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--rh-gray-700);
+            flex-wrap: wrap;
+        }
+        
+        .arch-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .arch-legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+        }
+        
+        .arch-legend-color.cp { background: var(--rh-blue); }
+        .arch-legend-color.infra { background: var(--rh-purple); }
+        .arch-legend-color.storage { background: var(--rh-cyan); }
+        .arch-legend-color.worker { background: var(--rh-orange); }
+        
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .chart-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .chart-container.scrollable {
+            height: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .chart-container.scrollable canvas {
+            min-height: 400px;
+        }
+        
+        /* Tables */
+        .table-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .table-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .table-search {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 250px;
+        }
+        
+        .table-search:focus {
+            outline: none;
+            border-color: var(--rh-blue);
+        }
+        
+        .table-scroll {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        
+        th {
+            background: var(--bg-tertiary);
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        th:hover {
+            background: var(--rh-gray-600);
+        }
+        
+        td {
+            padding: 0.875rem 1rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        
+        tr:hover td {
+            background: var(--bg-tertiary);
+        }
+        
+        tr.filtered-out {
+            display: none;
+        }
+        
+        /* Status badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .badge-success { background: rgba(62,134,53,0.2); color: var(--rh-green-light); }
+        .badge-warning { background: rgba(240,171,0,0.2); color: var(--rh-orange); }
+        .badge-danger { background: rgba(238,0,0,0.2); color: var(--rh-red-light); }
+        .badge-info { background: rgba(0,102,204,0.2); color: var(--rh-blue-light); }
+        .badge-neutral { background: var(--bg-tertiary); color: var(--text-secondary); }
+        
+        /* Role badges */
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 0.25rem;
+            text-transform: uppercase;
+        }
+        
+        .role-control-plane { background: var(--rh-blue); color: white; }
+        .role-infra { background: var(--rh-purple); color: white; }
+        .role-storage { background: var(--rh-cyan); color: white; }
+        .role-worker { background: var(--rh-gray-600); color: white; }
+        
+        /* Progress bars */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.25rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-low { background: var(--rh-green); }
+        .progress-medium { background: var(--rh-orange); }
+        .progress-high { background: var(--rh-red); }
+        
+        /* Recommendations Section */
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .rec-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .rec-card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .rec-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .rec-card-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .rec-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .rec-column {
+            text-align: center;
+        }
+        
+        .rec-column-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        
+        .rec-column-value {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .rec-column-detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .rec-notes {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .rec-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .rec-note-icon {
+            color: var(--rh-orange);
+        }
+        
+        /* Warnings & Opportunities */
+        .warnings-section {
+            background: rgba(238,0,0,0.1);
+            border: 1px solid var(--rh-red);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .warnings-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--rh-red-light);
+            margin-bottom: 1rem;
+        }
+        
+        .warning-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .warning-icon {
+            color: var(--rh-orange);
+            font-size: 1.25rem;
+        }
+        
+        .opportunities-section {
+            background: rgba(62,134,53,0.1);
+            border: 1px solid var(--rh-green);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .opportunities-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--rh-green-light);
+            margin-bottom: 1rem;
+        }
+        
+        .opportunity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Checklist */
+        .checklist {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .checklist-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+        
+        .check-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+        
+        .check-icon.pass { background: var(--rh-green); color: white; }
+        .check-icon.warn { background: var(--rh-orange); color: white; }
+        .check-icon.fail { background: var(--rh-red); color: white; }
+        .check-icon.info { background: var(--rh-blue); color: white; }
+        
+        .check-text {
+            flex: 1;
+        }
+        
+        .check-label {
+            font-weight: 500;
+        }
+        
+        .check-detail {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        /* Section headers */
+        .section-header {
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        /* No Data Available */
+        .no-data {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .no-data-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .no-data-title {
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .no-data-text {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        /* Export buttons */
+        .export-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--rh-red);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--rh-red-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--rh-gray-600);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .header-meta {
+                text-align: center;
+            }
+            
+            .nav-tabs {
+                padding: 0 1rem;
+            }
+            
+            .nav-tab {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="title-section">
+                    <h1>OCP Sizing Calculator</h1>
+                    <p>Kubernetes to OpenShift Migration Assessment</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div>Generated: 2026-01-07 22:09</div>
+                <div>7 nodes analyzed</div>
+            </div>
+        </div>
+    </header>
+    
+    <nav class="nav-tabs">
+        <div class="nav-tabs-inner">
+            <div class="nav-tab active" data-tab="overview">Overview</div>
+            <div class="nav-tab" data-tab="nodes">Node Inventory</div>
+            <div class="nav-tab" data-tab="efficiency">Efficiency Analysis</div>
+            <div class="nav-tab" data-tab="workloads">Workload Distribution</div>
+            <div class="nav-tab" data-tab="recommendations">OCP Recommendations</div>
+            <div class="nav-tab" data-tab="checklist">Migration Checklist</div>
+            <div class="nav-tab" data-tab="storage">Persistent Volumes</div>
+        </div>
+    </nav>
+    
+    <main class="main-content">
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overview">
+            <div class="section-header">
+                <h2 class="section-title">Cluster Overview</h2>
+                <p class="section-subtitle">Summary of your Kubernetes cluster resources and utilization</p>
+            </div>
+            
+            <!-- Architecture Diagram -->
+            <div class="architecture-diagram">
+                <div class="architecture-title">
+                    <h3>🏗️ Cluster Architecture</h3>
+                    <p>Kubernetes Cluster • 7 Nodes • AWS</p>
+                </div>
+                
+                <div class="architecture-container">
+                    <!-- Control Plane Tier -->
+                    
+                    <div class="arch-tier">
+                        <div class="arch-tier-label">Control Plane Tier</div>
+                        <div class="arch-tier-nodes">
+                            <div class="arch-node-group control-plane">
+                                <div class="icon">🎛️</div>
+                                <div class="role">Control Plane</div>
+                                <div class="count">3</div>
+                                <div class="specs">16 vCPU × 61 GiB</div>
+                                <div class="node-names">ip-10-0-31-239, ip-10-0-57-11, ip-10-0-9-43</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    
+                    <div class="arch-connector-h"></div>
+                    
+                    <!-- Platform Services Tier -->
+                    
+                    <div class="arch-tier">
+                        <div class="arch-tier-label">Platform Services Tier</div>
+                        <div class="arch-middle-tier">
+                            
+                            
+                            
+                            <div class="arch-node-group storage">
+                                <div class="icon">💾</div>
+                                <div class="role">Storage (ODF)</div>
+                                <div class="count">4</div>
+                                <div class="specs">16 vCPU × 61 GiB</div>
+                                <div class="node-names">Ceph MON, MDS, OSD</div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                    
+                    
+                    
+                    
+                    
+                    
+                </div>
+                
+                <div class="arch-legend">
+                    <div class="arch-legend-item"><div class="arch-legend-color cp"></div><span>Control Plane (3)</span></div>
+                    
+                    <div class="arch-legend-item"><div class="arch-legend-color storage"></div><span>Storage (4)</span></div>
+                    
+                </div>
+            </div>
+            
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Total Nodes</span>
+                        <div class="card-icon nodes">🖥️</div>
+                    </div>
+                    <div class="card-value">7</div>
+                    <div class="card-subtitle">
+                        3 control-plane, 4 worker
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">CPU Capacity</span>
+                        <div class="card-icon cpu">⚡</div>
+                    </div>
+                    <div class="card-value">112</div>
+                    <div class="card-subtitle">vCPU cores total</div>
+                    <div class="card-detail">
+                        108 allocatable
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Memory Capacity</span>
+                        <div class="card-icon memory">🧠</div>
+                    </div>
+                    <div class="card-value">430</div>
+                    <div class="card-subtitle">GiB total</div>
+                    <div class="card-detail">
+                        423 GiB allocatable
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Running Pods</span>
+                        <div class="card-icon pods">📦</div>
+                    </div>
+                    <div class="card-value">530</div>
+                    <div class="card-subtitle">across 76 namespaces</div>
+                    <div class="card-detail">
+                        Capacity: 1750 pods
+                    </div>
+                </div>
+                
+                <div class="summary-card highlight">
+                    <div class="card-header">
+                        <span class="card-title">CPU Efficiency</span>
+                        <div class="card-icon efficiency">📊</div>
+                    </div>
+                    <div class="card-value">6.6%</div>
+                    <div class="card-subtitle">actual vs requested</div>
+                    <div class="card-detail">
+                        Requested: 57.6 cores |
+                        Actual: 8.2 cores
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Platform</span>
+                        <div class="card-icon storage">☁️</div>
+                    </div>
+                    <div class="card-value" style="font-size: 1.5rem;">AWS</div>
+                    <div class="card-subtitle">v1.31.14</div>
+                    <div class="card-detail">
+                        cri-o
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 class="chart-title">Resource Requests vs Actual Usage</h3>
+                    <div class="chart-container">
+                        <canvas id="requestsVsActualChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 class="chart-title">Nodes by Role</h3>
+                    <div class="chart-container">
+                        <canvas id="nodesByRoleChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Nodes Tab -->
+        <div class="tab-content" id="nodes">
+            <div class="section-header">
+                <h2 class="section-title">Node Inventory</h2>
+                <p class="section-subtitle">Detailed view of all cluster nodes with resource allocation</p>
+            </div>
+            
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <span class="filter-label">Filter by Role:</span>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" data-table="nodesTable">
+                        All <span class="filter-count">7</span>
+                    </button>
+                    <button class="filter-btn control-plane" data-filter="control-plane" data-table="nodesTable">🎛️ Control Plane <span class="filter-count">3</span></button>
+                    
+                    <button class="filter-btn storage" data-filter="storage" data-table="nodesTable">💾 Storage <span class="filter-count">4</span></button>
+                    
+                </div>
+            </div>
+            
+            <div class="export-buttons">
+                <button class="btn btn-primary" onclick="exportTableToCSV('nodesTable', 'nodes_inventory.csv')">
+                    📥 Export CSV
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 class="table-title">All Nodes (<span id="nodesTableCount">7</span>)</h3>
+                    <input type="text" class="table-search" placeholder="Search nodes..." onkeyup="filterTable('nodesTable', this.value)">
+                </div>
+                <div class="table-scroll">
+                    <table id="nodesTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('nodesTable', 0)">Node Name</th>
+                                <th onclick="sortTable('nodesTable', 1)">Role</th>
+                                <th onclick="sortTable('nodesTable', 2)">CPU (cores)</th>
+                                <th onclick="sortTable('nodesTable', 3)">CPU Requested</th>
+                                <th onclick="sortTable('nodesTable', 4)">CPU Actual</th>
+                                <th onclick="sortTable('nodesTable', 5)">Memory (GiB)</th>
+                                <th onclick="sortTable('nodesTable', 6)">Mem Requested</th>
+                                <th onclick="sortTable('nodesTable', 7)">Mem Actual</th>
+                                <th onclick="sortTable('nodesTable', 8)">Pods</th>
+                                <th onclick="sortTable('nodesTable', 9)">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-15-117.ec2.internal</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>12.01 (77.5%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-medium" style="width: 77.5%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>0.83 (5.4%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 5.4%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>36.9 (61.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-medium" style="width: 61.2%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>15.8 (26.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 26.2%"></div>
+                                    </div>
+                                </td>
+                                <td>88/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-31-239.ec2.internal</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>2.2 (14.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 14.2%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>0.99 (6.4%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 6.4%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>8.2 (13.6%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 13.6%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>12.8 (21.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 21.2%"></div>
+                                    </div>
+                                </td>
+                                <td>46/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-37-185.ec2.internal</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>11.3 (72.9%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-medium" style="width: 72.9%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>1.73 (11.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 11.2%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>35.1 (58.1%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-medium" style="width: 58.1%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>28.3 (46.9%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 46.9%"></div>
+                                    </div>
+                                </td>
+                                <td>133/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-51-37.ec2.internal</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>15.03 (97.0%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-high" style="width: 97.0%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>1.02 (6.6%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 6.6%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>40.8 (67.6%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-medium" style="width: 67.6%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>15.6 (25.9%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 25.9%"></div>
+                                    </div>
+                                </td>
+                                <td>44/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-57-11.ec2.internal</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>2.29 (14.7%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 14.7%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>1.07 (6.9%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 6.9%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>8.7 (14.4%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 14.4%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>12.3 (20.4%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 20.4%"></div>
+                                    </div>
+                                </td>
+                                <td>48/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-9-210.ec2.internal</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>12.44 (80.3%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-high" style="width: 80.3%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>0.63 (4.1%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 4.1%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>28.5 (47.2%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 47.2%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>16.1 (26.6%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 26.6%"></div>
+                                    </div>
+                                </td>
+                                <td>102/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-9-43.ec2.internal</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>16.0</td>
+                                <td>
+                                    <div>2.32 (14.9%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 14.9%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>1.9 (12.3%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 12.3%"></div>
+                                    </div>
+                                </td>
+                                <td>61.5</td>
+                                <td>
+                                    <div>9.7 (16.1%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 16.1%"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>15.3 (25.3%)</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 25.3%"></div>
+                                    </div>
+                                </td>
+                                <td>69/250</td>
+                                <td><span class="badge badge-success">Ready</span></td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Efficiency Tab -->
+        <div class="tab-content" id="efficiency">
+            <div class="section-header">
+                <h2 class="section-title">Efficiency Analysis</h2>
+                <p class="section-subtitle">Compare requested resources against actual utilization to identify optimization opportunities</p>
+            </div>
+            
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <span class="filter-label">Filter by Role:</span>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" data-table="efficiencyTable">
+                        All <span class="filter-count">7</span>
+                    </button>
+                    <button class="filter-btn control-plane" data-filter="control-plane" data-table="efficiencyTable">🎛️ Control Plane <span class="filter-count">3</span></button>
+                    
+                    <button class="filter-btn storage" data-filter="storage" data-table="efficiencyTable">💾 Storage <span class="filter-count">4</span></button>
+                    
+                </div>
+            </div>
+            
+            <div class="summary-grid">
+                <div class="summary-card highlight">
+                    <div class="card-header">
+                        <span class="card-title">CPU Over-Provisioning</span>
+                        <div class="card-icon cpu">⚡</div>
+                    </div>
+                    <div class="card-value">86%</div>
+                    <div class="card-subtitle">of requested CPU is unused</div>
+                    <div class="card-detail">
+                        57.6 cores requested, 8.2 actually used
+                    </div>
+                </div>
+                
+                <div class="summary-card highlight">
+                    <div class="card-header">
+                        <span class="card-title">Memory Over-Provisioning</span>
+                        <div class="card-icon memory">🧠</div>
+                    </div>
+                    <div class="card-value">31%</div>
+                    <div class="card-subtitle">of requested memory is unused</div>
+                    <div class="card-detail">
+                        167.9 GiB requested, 116.2 GiB actually used
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Right-Sizing Potential</span>
+                        <div class="card-icon efficiency">💰</div>
+                    </div>
+                    <div class="card-value">~0</div>
+                    <div class="card-subtitle">nodes could potentially be saved</div>
+                    <div class="card-detail">
+                        Current: 7 → Optimized: 12
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 class="chart-title">CPU: Requested vs Actual per Node</h3>
+                    <div class="chart-container">
+                        <canvas id="cpuEfficiencyChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 class="chart-title">Memory: Requested vs Actual per Node</h3>
+                    <div class="chart-container">
+                        <canvas id="memoryEfficiencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3 class="table-title">Per-Node Efficiency Details (<span id="efficiencyTableCount">7</span>)</h3>
+                </div>
+                <div class="table-scroll">
+                    <table id="efficiencyTable">
+                        <thead>
+                            <tr>
+                                <th>Node</th>
+                                <th>Role</th>
+                                <th>CPU Requested</th>
+                                <th>CPU Actual</th>
+                                <th>CPU Efficiency</th>
+                                <th>Memory Requested</th>
+                                <th>Memory Actual</th>
+                                <th>Memory Efficiency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-15-117</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>12.01 cores</td>
+                                <td>0.83 cores</td>
+                                <td>
+                                    <span class="badge badge-danger">
+                                        7%
+                                    </span>
+                                </td>
+                                <td>36.9 GiB</td>
+                                <td>15.8 GiB</td>
+                                <td>
+                                    <span class="badge badge-warning">
+                                        43%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-31-239</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>2.2 cores</td>
+                                <td>0.99 cores</td>
+                                <td>
+                                    <span class="badge badge-warning">
+                                        45%
+                                    </span>
+                                </td>
+                                <td>8.2 GiB</td>
+                                <td>12.8 GiB</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        156%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-37-185</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>11.3 cores</td>
+                                <td>1.73 cores</td>
+                                <td>
+                                    <span class="badge badge-danger">
+                                        15%
+                                    </span>
+                                </td>
+                                <td>35.1 GiB</td>
+                                <td>28.3 GiB</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        81%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-51-37</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>15.03 cores</td>
+                                <td>1.02 cores</td>
+                                <td>
+                                    <span class="badge badge-danger">
+                                        7%
+                                    </span>
+                                </td>
+                                <td>40.8 GiB</td>
+                                <td>15.6 GiB</td>
+                                <td>
+                                    <span class="badge badge-warning">
+                                        38%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-57-11</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>2.29 cores</td>
+                                <td>1.07 cores</td>
+                                <td>
+                                    <span class="badge badge-warning">
+                                        47%
+                                    </span>
+                                </td>
+                                <td>8.7 GiB</td>
+                                <td>12.3 GiB</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        141%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-9-210</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>12.44 cores</td>
+                                <td>0.63 cores</td>
+                                <td>
+                                    <span class="badge badge-danger">
+                                        5%
+                                    </span>
+                                </td>
+                                <td>28.5 GiB</td>
+                                <td>16.1 GiB</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        56%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-9-43</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>2.32 cores</td>
+                                <td>1.9 cores</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        82%
+                                    </span>
+                                </td>
+                                <td>9.7 GiB</td>
+                                <td>15.3 GiB</td>
+                                <td>
+                                    <span class="badge badge-success">
+                                        158%
+                                    </span>
+                                </td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Workloads Tab -->
+        <div class="tab-content" id="workloads">
+            <div class="section-header">
+                <h2 class="section-title">Workload Distribution</h2>
+                <p class="section-subtitle">Analysis of pod distribution across namespaces and nodes</p>
+            </div>
+            
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <span class="filter-label">Filter by Role:</span>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" data-table="workloadTable">
+                        All <span class="filter-count">7</span>
+                    </button>
+                    <button class="filter-btn control-plane" data-filter="control-plane" data-table="workloadTable">🎛️ Control Plane <span class="filter-count">3</span></button>
+                    
+                    <button class="filter-btn storage" data-filter="storage" data-table="workloadTable">💾 Storage <span class="filter-count">4</span></button>
+                    
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 class="chart-title">Pods by Namespace (All 76 namespaces)</h3>
+                    <div class="chart-container scrollable" id="namespaceChartContainer">
+                        <canvas id="namespaceChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 class="chart-title">Pods per Node</h3>
+                    <div class="chart-container">
+                        <canvas id="podsPerNodeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3 class="table-title">Pods per Node (<span id="workloadTableCount">7</span>)</h3>
+                </div>
+                <div class="table-scroll">
+                    <table id="workloadTable">
+                        <thead>
+                            <tr>
+                                <th>Node</th>
+                                <th>Role</th>
+                                <th>Pod Count</th>
+                                <th>Pod Capacity</th>
+                                <th>Utilization</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-15-117</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>88</td>
+                                <td>250</td>
+                                <td>
+                                    <div>35.2%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 35.199999999999996%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-31-239</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>46</td>
+                                <td>250</td>
+                                <td>
+                                    <div>18.4%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 18.4%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-37-185</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>133</td>
+                                <td>250</td>
+                                <td>
+                                    <div>53.2%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 53.2%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-51-37</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>44</td>
+                                <td>250</td>
+                                <td>
+                                    <div>17.6%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 17.599999999999998%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-57-11</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>48</td>
+                                <td>250</td>
+                                <td>
+                                    <div>19.2%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 19.2%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="storage">
+                                <td><strong>ip-10-0-9-210</strong></td>
+                                <td><span class="role-badge role-storage">storage</span></td>
+                                <td>102</td>
+                                <td>250</td>
+                                <td>
+                                    <div>40.8%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 40.8%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr data-role="control-plane">
+                                <td><strong>ip-10-0-9-43</strong></td>
+                                <td><span class="role-badge role-control-plane">control-plane</span></td>
+                                <td>69</td>
+                                <td>250</td>
+                                <td>
+                                    <div>27.6%</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-low" style="width: 27.6%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recommendations Tab -->
+        <div class="tab-content" id="recommendations">
+            <div class="section-header">
+                <h2 class="section-title">OpenShift Sizing Recommendations</h2>
+                <p class="section-subtitle">Recommended node configurations for OpenShift based on your current workload</p>
+            </div>
+            
+            <div class="recommendations-grid">
+                <div class="rec-card">
+                    <div class="rec-card-header">
+                        <div class="rec-icon" style="background: rgba(0,102,204,0.2); color: var(--rh-blue);">🎛️</div>
+                        <div>
+                            <h3 class="rec-card-title">Control Plane</h3>
+                            <span class="badge badge-info">master nodes</span>
+                        </div>
+                    </div>
+                    <div class="rec-comparison">
+                        <div class="rec-column">
+                            <div class="rec-column-label">Current</div>
+                            <div class="rec-column-value">3</div>
+                            <div class="rec-column-detail">
+                                16 vCPU × 61 GiB
+                            </div>
+                        </div>
+                        <div class="rec-column">
+                            <div class="rec-column-label">Recommended</div>
+                            <div class="rec-column-value" style="color: var(--rh-green);">3</div>
+                            <div class="rec-column-detail">
+                                8 vCPU × 32 GiB
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <div class="rec-card">
+                    <div class="rec-card-header">
+                        <div class="rec-icon" style="background: rgba(103,83,172,0.2); color: var(--rh-purple);">🔧</div>
+                        <div>
+                            <h3 class="rec-card-title">Infrastructure</h3>
+                            <span class="badge badge-info">logging, monitoring, router</span>
+                        </div>
+                    </div>
+                    <div class="rec-comparison">
+                        <div class="rec-column">
+                            <div class="rec-column-label">Current</div>
+                            <div class="rec-column-value">0</div>
+                            <div class="rec-column-detail">
+                                0 vCPU × 0 GiB
+                            </div>
+                        </div>
+                        <div class="rec-column">
+                            <div class="rec-column-label">Recommended</div>
+                            <div class="rec-column-value" style="color: var(--rh-green);">3</div>
+                            <div class="rec-column-detail">
+                                16 vCPU × 64 GiB
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rec-notes"><div class="rec-note"><span class="rec-note-icon">⚠️</span>No dedicated infra nodes - recommend adding for logging/monitoring</div></div>
+                </div>
+                
+                <div class="rec-card">
+                    <div class="rec-card-header">
+                        <div class="rec-icon" style="background: rgba(0,149,150,0.2); color: var(--rh-cyan);">💾</div>
+                        <div>
+                            <h3 class="rec-card-title">Storage (ODF)</h3>
+                            <span class="badge badge-info">OpenShift Data Foundation</span>
+                        </div>
+                    </div>
+                    <div class="rec-comparison">
+                        <div class="rec-column">
+                            <div class="rec-column-label">Current</div>
+                            <div class="rec-column-value">0</div>
+                            <div class="rec-column-detail">
+                                0 vCPU × 0 GiB
+                            </div>
+                        </div>
+                        <div class="rec-column">
+                            <div class="rec-column-label">Recommended</div>
+                            <div class="rec-column-value" style="color: var(--rh-green);">3</div>
+                            <div class="rec-column-detail">
+                                16 vCPU × 64 GiB
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <div class="rec-card">
+                    <div class="rec-card-header">
+                        <div class="rec-icon" style="background: rgba(240,171,0,0.2); color: var(--rh-orange);">⚙️</div>
+                        <div>
+                            <h3 class="rec-card-title">Worker Nodes</h3>
+                            <span class="badge badge-info">application workloads</span>
+                        </div>
+                    </div>
+                    <div class="rec-comparison">
+                        <div class="rec-column">
+                            <div class="rec-column-label">Current</div>
+                            <div class="rec-column-value">4</div>
+                            <div class="rec-column-detail">
+                                64 vCPU total
+                            </div>
+                        </div>
+                        <div class="rec-column">
+                            <div class="rec-column-label">Optimized</div>
+                            <div class="rec-column-value" style="color: var(--rh-green);">3</div>
+                            <div class="rec-column-detail">
+                                16 vCPU × 64 GiB each
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rec-notes">
+                        <div class="rec-note">
+                            <span class="rec-note-icon">📊</span>
+                            Actual CPU used: 4.2 cores | Memory used: 75.8 GiB
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            
+            <div class="opportunities-section">
+                <h3 class="opportunities-title">💡 Optimization Opportunities</h3>
+                <div class="opportunity-item"><span>✅</span><span>Low CPU utilization (6.6%) - significant right-sizing opportunity</span></div>
+            </div>
+            
+            
+            
+            <div class="warnings-section">
+                <h3 class="warnings-title">⚠️ Warnings</h3>
+                <div class="warning-item"><span class="warning-icon">⚠️</span><span>No dedicated infrastructure nodes detected</span></div>
+            </div>
+            
+        </div>
+        
+        <!-- Checklist Tab -->
+        <div class="tab-content" id="checklist">
+            <div class="section-header">
+                <h2 class="section-title">Migration Checklist</h2>
+                <p class="section-subtitle">Pre-migration compatibility checks and considerations</p>
+            </div>
+            
+            <div class="recommendations-grid">
+                <div class="checklist">
+                    <h3 class="checklist-title">Platform Compatibility</h3>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">
+                            ✓
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Kubernetes Version</div>
+                            <div class="check-detail">v1.31.14 - Compatible with OCP 4.14+</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">
+                            ✓
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Container Runtime</div>
+                            <div class="check-detail">cri-o://1.31.13-2.rhaos4.18.git15789b8.el9 - Already using CRI-O</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">✓</div>
+                        <div class="check-text">
+                            <div class="check-label">Infrastructure Provider</div>
+                            <div class="check-detail">AWS - Supported platform for OpenShift</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">
+                            ✓
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Version Consistency</div>
+                            <div class="check-detail">All nodes running same kubelet version</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="checklist">
+                    <h3 class="checklist-title">Resource Considerations</h3>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">
+                            ✓
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Control Plane HA</div>
+                            <div class="check-detail">3 master nodes - HA configuration</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">
+                            i
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Infrastructure Nodes</div>
+                            <div class="check-detail">0 infra nodes - Consider dedicated infra nodes for larger clusters</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon warn">
+                            !
+                        </div>
+                        <div class="check-text">
+                            <div class="check-label">Resource Efficiency</div>
+                            <div class="check-detail">6.6% efficiency - Significant right-sizing opportunity</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">i</div>
+                        <div class="check-text">
+                            <div class="check-label">Network Plugin</div>
+                            <div class="check-detail">OCP uses OVN-Kubernetes by default - verify network policy compatibility</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="checklist">
+                    <h3 class="checklist-title">Workload Analysis</h3>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon pass">✓</div>
+                        <div class="check-text">
+                            <div class="check-label">Total Pods</div>
+                            <div class="check-detail">530 pods across 76 namespaces</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">i</div>
+                        <div class="check-text">
+                            <div class="check-label">Node Taints</div>
+                            <div class="check-detail">3 nodes have taints - verify tolerations for OCP workloads</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">i</div>
+                        <div class="check-text">
+                            <div class="check-label">Security Contexts</div>
+                            <div class="check-detail">Review pod security policies - OCP uses Security Context Constraints (SCCs)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">i</div>
+                        <div class="check-text">
+                            <div class="check-label">Storage Classes</div>
+                            <div class="check-detail">Map existing storage classes to OCP storage provisioners</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="checklist">
+                    <h3 class="checklist-title">Pre-Migration Tasks</h3>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">☐</div>
+                        <div class="check-text">
+                            <div class="check-label">Export YAML Manifests</div>
+                            <div class="check-detail">Export deployments, services, configmaps, secrets for migration</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">☐</div>
+                        <div class="check-text">
+                            <div class="check-label">Image Registry</div>
+                            <div class="check-detail">Plan container image migration strategy to OCP internal registry</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">☐</div>
+                        <div class="check-text">
+                            <div class="check-label">Persistent Data</div>
+                            <div class="check-detail">Plan PV/PVC migration and data backup strategy</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item">
+                        <div class="check-icon info">☐</div>
+                        <div class="check-text">
+                            <div class="check-label">DNS/Ingress</div>
+                            <div class="check-detail">Plan Route migration from Ingress resources</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Storage Tab (Always visible, shows "No Data" if no PVs) -->
+        <div class="tab-content" id="storage">
+            <div class="section-header">
+                <h2 class="section-title">Persistent Volumes</h2>
+                <p class="section-subtitle">Storage analysis and migration considerations</p>
+            </div>
+            
+            
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Total PVs</span>
+                        <div class="card-icon storage">💾</div>
+                    </div>
+                    <div class="card-value">17</div>
+                    <div class="card-subtitle">persistent volumes</div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Total Capacity</span>
+                        <div class="card-icon storage">📊</div>
+                    </div>
+                    <div class="card-value">0.0</div>
+                    <div class="card-subtitle">GiB provisioned</div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-header">
+                        <span class="card-title">Storage Classes</span>
+                        <div class="card-icon storage">🏷️</div>
+                    </div>
+                    <div class="card-value">2</div>
+                    <div class="card-subtitle">ocs-storagecluster-ceph-rbd, gp3-csi</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <div class="table-header">
+                    <h3 class="table-title">Persistent Volume Details</h3>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Capacity</th>
+                                <th>Access Modes</th>
+                                <th>Reclaim Policy</th>
+                                <th>Status</th>
+                                <th>Claim</th>
+                                <th>Storage Class</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr>
+                                <td><strong>local-cluster-development</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-c95a1405-13d4-4af7-9611-e1c3918d3b70</td>
+                                <td><span class="badge badge-warning">8Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-compliance</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-32ddad2f-2763-40d8-aa82-61d67f8cf1d1</td>
+                                <td><span class="badge badge-warning">1Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-compliance</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-e66e46e5-2775-4653-ad06-34ade4a5598b</td>
+                                <td><span class="badge badge-warning">1Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-compliance</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-830e4df6-1035-42e5-8be4-84352d4bf3f1</td>
+                                <td><span class="badge badge-warning">1Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-pipelines</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-8cfd9074-3688-4928-9ea1-282fe0458f77</td>
+                                <td><span class="badge badge-warning">1Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-f1079fd9-d5b1-4a1c-8b95-631ef12be008</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>ocs-storagecluster-ceph-rbd</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-2529d71a-47f5-4c8e-aaa4-7fa07c889d8f</td>
+                                <td><span class="badge badge-warning">500Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-d9911f83-0df8-4412-a44f-c72febf00964</td>
+                                <td><span class="badge badge-warning">500Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-18ab40fa-cd15-4a11-8d0e-df3b8a08eed2</td>
+                                <td><span class="badge badge-warning">500Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-7369d273-f909-47f5-af84-82943d513ee2</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-e9bb7486-fbf7-4ca1-af7f-6790c8a35231</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>openshift-storage</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-dd5cb319-1a35-4950-956d-00f2243c039d</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>quay</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-9a7bf0c0-28ef-4e90-becd-629134afd971</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>quay</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-57e25f18-c4cf-44b5-9068-27c465561f0a</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>showroom-vgspz</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Pending</td>
+                                <td>gp3-csi</td>
+                                <td><span class="badge badge-warning"><unset></span></td>
+                                <td>29h</td>
+                                <td>-</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>stackrox</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-aa2899ad-e3a4-45f4-b611-893e7b082488</td>
+                                <td><span class="badge badge-warning">100Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                            <tr>
+                                <td><strong>stackrox</strong></td>
+                                <td>0.0 GiB</td>
+                                <td>Bound</td>
+                                <td>pvc-a2f79864-2162-4a1e-972d-087af914117f</td>
+                                <td><span class="badge badge-warning">50Gi</span></td>
+                                <td>RWO</td>
+                                <td>gp3-csi</td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <p>OCP Sizing Calculator v1.1 | Generated by Red Hat Solution Architecture</p>
+        <p>This assessment is based on point-in-time data. Actual requirements may vary based on workload patterns.</p>
+    </footer>
+    
+    <script>
+        // Tab navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // Filter functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tableId = btn.dataset.table;
+                const filter = btn.dataset.filter;
+                
+                // Update active state for this filter group
+                btn.parentElement.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Filter table rows
+                const table = document.getElementById(tableId);
+                if (table) {
+                    const rows = table.querySelectorAll('tbody tr');
+                    let visibleCount = 0;
+                    
+                    rows.forEach(row => {
+                        if (filter === 'all' || row.dataset.role === filter) {
+                            row.classList.remove('filtered-out');
+                            visibleCount++;
+                        } else {
+                            row.classList.add('filtered-out');
+                        }
+                    });
+                    
+                    // Update count display
+                    const countEl = document.getElementById(tableId + 'Count');
+                    if (countEl) {
+                        countEl.textContent = visibleCount;
+                    }
+                }
+            });
+        });
+        
+        // Chart data
+        const nodesData = [{"name": "ip-10-0-15-117.ec2.internal", "role": "storage", "roles": "worker", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 12.01, "cpu_actual": 0.83, "cpu_req_pct": 77.5, "cpu_actual_pct": 5.4, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 36.9, "mem_actual": 15.8, "mem_req_pct": 61.2, "mem_actual_pct": 26.2, "pod_count": 88, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "None", "instance_type": "m6a.4xlarge", "ip_address": "10.0.15.117", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-31-239.ec2.internal", "role": "control-plane", "roles": "control-plane, master", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 2.2, "cpu_actual": 0.99, "cpu_req_pct": 14.2, "cpu_actual_pct": 6.4, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 8.2, "mem_actual": 12.8, "mem_req_pct": 13.6, "mem_actual_pct": 21.2, "pod_count": 46, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "node-role.kubernetes.io/master:NoSchedule", "instance_type": "m6a.4xlarge", "ip_address": "10.0.31.239", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-37-185.ec2.internal", "role": "storage", "roles": "worker", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 11.3, "cpu_actual": 1.73, "cpu_req_pct": 72.9, "cpu_actual_pct": 11.2, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 35.1, "mem_actual": 28.3, "mem_req_pct": 58.1, "mem_actual_pct": 46.9, "pod_count": 133, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "None", "instance_type": "m6a.4xlarge", "ip_address": "10.0.37.185", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-51-37.ec2.internal", "role": "storage", "roles": "worker", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 15.03, "cpu_actual": 1.02, "cpu_req_pct": 97.0, "cpu_actual_pct": 6.6, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 40.8, "mem_actual": 15.6, "mem_req_pct": 67.6, "mem_actual_pct": 25.9, "pod_count": 44, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "None", "instance_type": "m6a.4xlarge", "ip_address": "10.0.51.37", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-57-11.ec2.internal", "role": "control-plane", "roles": "control-plane, master", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 2.29, "cpu_actual": 1.07, "cpu_req_pct": 14.7, "cpu_actual_pct": 6.9, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 8.7, "mem_actual": 12.3, "mem_req_pct": 14.4, "mem_actual_pct": 20.4, "pod_count": 48, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "node-role.kubernetes.io/master:NoSchedule", "instance_type": "m6a.4xlarge", "ip_address": "10.0.57.11", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-9-210.ec2.internal", "role": "storage", "roles": "worker", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 12.44, "cpu_actual": 0.63, "cpu_req_pct": 80.3, "cpu_actual_pct": 4.1, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 28.5, "mem_actual": 16.1, "mem_req_pct": 47.2, "mem_actual_pct": 26.6, "pod_count": 102, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "None", "instance_type": "m6a.4xlarge", "ip_address": "10.0.9.210", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}, {"name": "ip-10-0-9-43.ec2.internal", "role": "control-plane", "roles": "control-plane, master", "cpu_capacity": 16.0, "cpu_allocatable": 15.5, "cpu_requested": 2.32, "cpu_actual": 1.9, "cpu_req_pct": 14.9, "cpu_actual_pct": 12.3, "mem_capacity": 61.5, "mem_allocatable": 60.4, "mem_requested": 9.7, "mem_actual": 15.3, "mem_req_pct": 16.1, "mem_actual_pct": 25.3, "pod_count": 69, "pod_capacity": 250, "is_ready": true, "is_schedulable": true, "taints": "node-role.kubernetes.io/master:NoSchedule", "instance_type": "m6a.4xlarge", "ip_address": "10.0.9.43", "kubelet_version": "v1.31.14", "os_image": "Red Hat Enterprise Linux CoreOS 418.94.202512022246-0", "container_runtime": "cri-o://1.31.13-2.rhaos4.18.git15789b8.el9"}];
+        const namespaceData = {"openshift-cnv": 44, "local-cluster-development": 43, "openshift-storage": 40, "multicluster-engine": 33, "open-cluster-management": 29, "openshift-monitoring": 24, "openshift-multus": 23, "stackrox": 21, "openshift-machine-config-operator": 19, "openshift-pipelines": 18, "open-cluster-management-hub": 15, "openshift-dns": 14, "openshift-cluster-csi-drivers": 10, "openshift-image-registry": 10, "openshift-ovn-kubernetes": 9, "openshift-cluster-node-tuning-operator": 8, "openshift-gitops": 8, "openshift-network-diagnostics": 8, "openshift-network-operator": 8, "open-cluster-management-agent-addon": 8, "quay": 6, "openshift-etcd": 6, "openshift-kube-apiserver": 6, "openshift-kube-controller-manager": 6, "openshift-kube-scheduler": 6, "openshift-operator-lifecycle-manager": 5, "openshift-user-workload-monitoring": 5, "hive": 5, "openshift-machine-api": 5, "openshift-marketplace": 5, "open-cluster-management-agent": 4, "openshift-ingress-canary": 4, "openshift-operators": 4, "openshift-cluster-storage-operator": 4, "openshift-console": 4, "cert-manager": 3, "openshift-apiserver": 3, "openshift-authentication": 3, "openshift-cloud-credential-operator": 3, "openshift-controller-manager": 3, "openshift-network-node-identity": 3, "openshift-oauth-apiserver": 3, "openshift-route-controller-manager": 3, "openshift-compliance": 3, "openshift-ingress": 2, "openshift-network-console": 2, "openshift-cloud-controller-manager": 2, "hypershift": 2, "cert-manager-operator": 1, "rhacs-operator": 1, "openshift-catalogd": 1, "openshift-cluster-version": 1, "openshift-operator-controller": 1, "openshift-service-ca": 1, "openshift-cloud-controller-manager-operator": 1, "openshift-cluster-samples-operator": 1, "openshift-console-operator": 1, "openshift-kube-storage-version-migrator": 1, "klusterlet-development": 1, "showroom-vgspz": 1, "openshift-apiserver-operator": 1, "openshift-authentication-operator": 1, "openshift-cloud-network-config-controller": 1, "openshift-cluster-machine-approver": 1, "openshift-cluster-olm-operator": 1, "openshift-config-operator": 1, "openshift-controller-manager-operator": 1, "openshift-dns-operator": 1, "openshift-etcd-operator": 1, "openshift-ingress-operator": 1, "openshift-insights": 1, "openshift-kube-apiserver-operator": 1, "openshift-kube-controller-manager-operator": 1, "openshift-kube-scheduler-operator": 1, "openshift-kube-storage-version-migrator-operator": 1, "openshift-service-ca-operator": 1};
+        
+        // Chart colors
+        const colors = {
+            red: '#EE0000',
+            blue: '#0066CC',
+            green: '#3E8635',
+            purple: '#6753AC',
+            orange: '#F0AB00',
+            cyan: '#009596',
+            gray: '#6A6E73'
+        };
+        
+        // Requests vs Actual Chart
+        new Chart(document.getElementById('requestsVsActualChart'), {
+            type: 'bar',
+            data: {
+                labels: ['CPU (cores)', 'Memory (GiB)'],
+                datasets: [
+                    {
+                        label: 'Capacity',
+                        data: [112.0, 430.3],
+                        backgroundColor: colors.gray
+                    },
+                    {
+                        label: 'Requested',
+                        data: [57.6, 167.9],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'Actual Usage',
+                        data: [8.2, 116.2],
+                        backgroundColor: colors.green
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#B8BBBE' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' }
+                    },
+                    y: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' }
+                    }
+                }
+            }
+        });
+        
+        // Nodes by Role Chart
+        const roleData = {"worker": 4, "control-plane": 3};
+        new Chart(document.getElementById('nodesByRoleChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(roleData),
+                datasets: [{
+                    data: Object.values(roleData),
+                    backgroundColor: [colors.blue, colors.purple, colors.cyan, colors.orange, colors.gray]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: '#B8BBBE' }
+                    }
+                }
+            }
+        });
+        
+        // CPU Efficiency Chart
+        new Chart(document.getElementById('cpuEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: nodesData.map(n => n.name.split('.')[0]),
+                datasets: [
+                    {
+                        label: 'CPU Requested',
+                        data: nodesData.map(n => n.cpu_requested),
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'CPU Actual',
+                        data: nodesData.map(n => n.cpu_actual),
+                        backgroundColor: colors.green
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#B8BBBE' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#B8BBBE', maxRotation: 45 },
+                        grid: { color: '#3C3F42' }
+                    },
+                    y: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' },
+                        title: { display: true, text: 'Cores', color: '#B8BBBE' }
+                    }
+                }
+            }
+        });
+        
+        // Memory Efficiency Chart
+        new Chart(document.getElementById('memoryEfficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: nodesData.map(n => n.name.split('.')[0]),
+                datasets: [
+                    {
+                        label: 'Memory Requested',
+                        data: nodesData.map(n => n.mem_requested),
+                        backgroundColor: colors.purple
+                    },
+                    {
+                        label: 'Memory Actual',
+                        data: nodesData.map(n => n.mem_actual),
+                        backgroundColor: colors.green
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#B8BBBE' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#B8BBBE', maxRotation: 45 },
+                        grid: { color: '#3C3F42' }
+                    },
+                    y: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' },
+                        title: { display: true, text: 'GiB', color: '#B8BBBE' }
+                    }
+                }
+            }
+        });
+        
+        // Namespace Chart - Scrollable with ALL namespaces
+        const nsLabels = Object.keys(namespaceData);
+        const nsValues = Object.values(namespaceData);
+        const chartHeight = Math.max(400, nsLabels.length * 25);
+        
+        const nsChartContainer = document.getElementById('namespaceChartContainer');
+        const nsCanvas = document.getElementById('namespaceChart');
+        nsCanvas.style.height = chartHeight + 'px';
+        
+        new Chart(nsCanvas, {
+            type: 'bar',
+            data: {
+                labels: nsLabels,
+                datasets: [{
+                    label: 'Pods',
+                    data: nsValues,
+                    backgroundColor: colors.cyan
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' }
+                    },
+                    y: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' }
+                    }
+                }
+            }
+        });
+        
+        // Pods per Node Chart
+        new Chart(document.getElementById('podsPerNodeChart'), {
+            type: 'bar',
+            data: {
+                labels: nodesData.map(n => n.name.split('.')[0]),
+                datasets: [{
+                    label: 'Running Pods',
+                    data: nodesData.map(n => n.pod_count),
+                    backgroundColor: colors.orange
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#B8BBBE', maxRotation: 45 },
+                        grid: { color: '#3C3F42' }
+                    },
+                    y: {
+                        ticks: { color: '#B8BBBE' },
+                        grid: { color: '#3C3F42' }
+                    }
+                }
+            }
+        });
+        
+        // Table functions
+        function filterTable(tableId, searchText) {
+            const table = document.getElementById(tableId);
+            const rows = table.getElementsByTagName('tr');
+            searchText = searchText.toLowerCase();
+            
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let found = false;
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().includes(searchText)) {
+                        found = true;
+                        break;
+                    }
+                }
+                rows[i].style.display = found ? '' : 'none';
+            }
+        }
+        
+        function sortTable(tableId, columnIndex) {
+            const table = document.getElementById(tableId);
+            const rows = Array.from(table.rows).slice(1);
+            const isNumeric = !isNaN(parseFloat(rows[0]?.cells[columnIndex]?.textContent));
+            
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent;
+                let bVal = b.cells[columnIndex].textContent;
+                
+                if (isNumeric) {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                    return bVal - aVal;
+                }
+                return aVal.localeCompare(bVal);
+            });
+            
+            rows.forEach(row => table.tBodies[0].appendChild(row));
+        }
+        
+        function exportTableToCSV(tableId, filename) {
+            const table = document.getElementById(tableId);
+            let csv = [];
+            
+            for (let row of table.rows) {
+                let cols = [];
+                for (let cell of row.cells) {
+                    cols.push('"' + cell.textContent.replace(/"/g, '""') + '"');
+                }
+                csv.push(cols.join(','));
+            }
+            
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        }
+    </script>
+</body>
+</html>
