@@ -763,6 +763,40 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
         .badge-info {{ background: rgba(0,102,204,0.2); color: var(--rh-blue-light); }}
         .badge-neutral {{ background: var(--bg-tertiary); color: var(--text-secondary); }}
         
+        /* Card value colors */
+        .text-success {{ color: var(--rh-green-light) !important; }}
+        .text-danger {{ color: var(--rh-red-light) !important; }}
+        .text-warning {{ color: var(--rh-orange) !important; }}
+        .text-info {{ color: var(--rh-blue-light) !important; }}
+        
+        /* Card advice styles */
+        .card-advice {{
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }}
+        
+        .advice-success {{
+            background: rgba(62,134,53,0.15);
+            color: var(--rh-green-light);
+        }}
+        
+        .advice-danger {{
+            background: rgba(238,0,0,0.15);
+            color: var(--rh-red-light);
+        }}
+        
+        .advice-warning {{
+            background: rgba(240,171,0,0.15);
+            color: var(--rh-orange);
+        }}
+        
+        .advice-info {{
+            background: rgba(0,102,204,0.15);
+            color: var(--rh-blue-light);
+        }}
+        
         /* Role badges */
         .role-badge {{
             display: inline-flex;
@@ -1538,42 +1572,68 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             </div>
             
             <div class="summary-grid" id="efficiencyCards">
-                <div class="summary-card highlight" id="cpuOverProvCard">
+                <div class="summary-card" id="cpuRequestAccuracyCard">
                     <div class="card-header">
-                        <span class="card-title">CPU Over-Provisioning</span>
-                        <div class="card-icon cpu">⚡</div>
+                        <span class="card-title">CPU Request Accuracy</span>
+                        <div class="card-icon cpu">📊</div>
                     </div>
-                    <div class="card-value" id="cpuOverProvValue">{round((1 - summary.total_actual.cpu / max(summary.total_requested.cpu, 1)) * 100, 0):.0f}%</div>
-                    <div class="card-subtitle">of requested CPU is unused</div>
-                    <div class="card-detail" id="cpuOverProvDetail">
+                    <div class="card-value {'text-success' if summary.total_actual.cpu <= summary.total_requested.cpu else 'text-danger'}" id="cpuRequestAccuracyValue">{round(summary.total_actual.cpu / max(summary.total_requested.cpu, 1) * 100, 0):.0f}%</div>
+                    <div class="card-subtitle" id="cpuRequestAccuracySubtitle">{'of requested CPU is being used' if summary.total_actual.cpu <= summary.total_requested.cpu else 'of requested CPU is being used (over limit!)'}</div>
+                    <div class="card-detail" id="cpuRequestAccuracyDetail">
                         {round(summary.total_requested.cpu / 1000, 1)} cores requested, {round(summary.total_actual.cpu / 1000, 1)} actually used
                     </div>
-                    <div class="filter-indicator hidden" id="cpuOverProvFilter"></div>
+                    <div class="card-advice {'advice-success' if summary.total_actual.cpu <= summary.total_requested.cpu else 'advice-danger'}" id="cpuRequestAccuracyAdvice">
+                        {'💡 Requests well-sized or over-provisioned' if summary.total_actual.cpu <= summary.total_requested.cpu else '⚠️ Usage exceeds requests - set proper limits!'}
+                    </div>
+                    <div class="filter-indicator hidden" id="cpuRequestAccuracyFilter"></div>
                 </div>
                 
-                <div class="summary-card highlight" id="memOverProvCard">
+                <div class="summary-card" id="memRequestAccuracyCard">
                     <div class="card-header">
-                        <span class="card-title">Memory Over-Provisioning</span>
-                        <div class="card-icon memory">🧠</div>
+                        <span class="card-title">Memory Request Accuracy</span>
+                        <div class="card-icon memory">📊</div>
                     </div>
-                    <div class="card-value" id="memOverProvValue">{round((1 - summary.total_actual.memory / max(summary.total_requested.memory, 1)) * 100, 0):.0f}%</div>
-                    <div class="card-subtitle">of requested memory is unused</div>
-                    <div class="card-detail" id="memOverProvDetail">
+                    <div class="card-value {'text-success' if summary.total_actual.memory <= summary.total_requested.memory else 'text-danger'}" id="memRequestAccuracyValue">{round(summary.total_actual.memory / max(summary.total_requested.memory, 1) * 100, 0):.0f}%</div>
+                    <div class="card-subtitle" id="memRequestAccuracySubtitle">{'of requested memory is being used' if summary.total_actual.memory <= summary.total_requested.memory else 'of requested memory is being used (over limit!)'}</div>
+                    <div class="card-detail" id="memRequestAccuracyDetail">
                         {round(summary.total_requested.memory / 1024, 1)} GiB requested, {round(summary.total_actual.memory / 1024, 1)} GiB actually used
                     </div>
-                    <div class="filter-indicator hidden" id="memOverProvFilter"></div>
+                    <div class="card-advice {'advice-success' if summary.total_actual.memory <= summary.total_requested.memory else 'advice-danger'}" id="memRequestAccuracyAdvice">
+                        {'💡 Requests well-sized or over-provisioned' if summary.total_actual.memory <= summary.total_requested.memory else '⚠️ Usage exceeds requests - set proper limits!'}
+                    </div>
+                    <div class="filter-indicator hidden" id="memRequestAccuracyFilter"></div>
                 </div>
                 
-                <div class="summary-card">
+                <div class="summary-card" id="cpuCapacityCard">
                     <div class="card-header">
-                        <span class="card-title">Right-Sizing Potential</span>
-                        <div class="card-icon efficiency">💰</div>
+                        <span class="card-title">CPU Capacity Utilization</span>
+                        <div class="card-icon cpu">📈</div>
                     </div>
-                    <div class="card-value">~{max(0, summary.total_nodes - recommendations['overall']['total_recommended_nodes'])}</div>
-                    <div class="card-subtitle">nodes could potentially be saved</div>
-                    <div class="card-detail">
-                        Current: {summary.total_nodes} → Optimized: {recommendations['overall']['total_recommended_nodes']}
+                    <div class="card-value" id="cpuCapacityValue">{round(summary.total_actual.cpu / max(summary.total_capacity.cpu, 1) * 100, 0):.0f}%</div>
+                    <div class="card-subtitle">of total CPU capacity is being used</div>
+                    <div class="card-detail" id="cpuCapacityDetail">
+                        {round(summary.total_capacity.cpu / 1000, 0)} cores capacity, {round(summary.total_actual.cpu / 1000, 1)} actually used
                     </div>
+                    <div class="card-advice advice-info" id="cpuCapacityAdvice">
+                        {'ℹ️ Low utilization - room to grow' if summary.total_actual.cpu / max(summary.total_capacity.cpu, 1) < 0.5 else '⚡ Moderate utilization' if summary.total_actual.cpu / max(summary.total_capacity.cpu, 1) < 0.8 else '🔥 High utilization - consider scaling'}
+                    </div>
+                    <div class="filter-indicator hidden" id="cpuCapacityFilter"></div>
+                </div>
+                
+                <div class="summary-card" id="memCapacityCard">
+                    <div class="card-header">
+                        <span class="card-title">Memory Capacity Utilization</span>
+                        <div class="card-icon memory">📈</div>
+                    </div>
+                    <div class="card-value" id="memCapacityValue">{round(summary.total_actual.memory / max(summary.total_capacity.memory, 1) * 100, 0):.0f}%</div>
+                    <div class="card-subtitle">of total memory capacity is being used</div>
+                    <div class="card-detail" id="memCapacityDetail">
+                        {round(summary.total_capacity.memory / 1024, 0)} GiB capacity, {round(summary.total_actual.memory / 1024, 1)} GiB actually used
+                    </div>
+                    <div class="card-advice advice-info" id="memCapacityAdvice">
+                        {'ℹ️ Low utilization - room to grow' if summary.total_actual.memory / max(summary.total_capacity.memory, 1) < 0.5 else '⚡ Moderate utilization' if summary.total_actual.memory / max(summary.total_capacity.memory, 1) < 0.8 else '🔥 High utilization - consider scaling'}
+                    </div>
+                    <div class="filter-indicator hidden" id="memCapacityFilter"></div>
                 </div>
             </div>
             
@@ -2192,33 +2252,80 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             const filterLabel = filter === 'all' ? '' : ' (' + filter + ')';
             
             // Calculate totals for filtered nodes
+            const totalCpuCapacity = filteredNodes.reduce((sum, n) => sum + n.cpu_capacity, 0);
             const totalCpuRequested = filteredNodes.reduce((sum, n) => sum + n.cpu_requested, 0);
             const totalCpuActual = filteredNodes.reduce((sum, n) => sum + n.cpu_actual, 0);
+            const totalMemCapacity = filteredNodes.reduce((sum, n) => sum + n.mem_capacity, 0);
             const totalMemRequested = filteredNodes.reduce((sum, n) => sum + n.mem_requested, 0);
             const totalMemActual = filteredNodes.reduce((sum, n) => sum + n.mem_actual, 0);
             
-            // Update CPU over-provisioning card
-            const cpuOverProv = totalCpuRequested > 0 ? Math.round((1 - totalCpuActual / totalCpuRequested) * 100) : 0;
-            document.getElementById('cpuOverProvValue').textContent = cpuOverProv + '%';
-            document.getElementById('cpuOverProvDetail').textContent = totalCpuRequested.toFixed(1) + ' cores requested, ' + totalCpuActual.toFixed(1) + ' actually used';
+            // CPU Request Accuracy Card
+            const cpuReqAccuracy = totalCpuRequested > 0 ? Math.round(totalCpuActual / totalCpuRequested * 100) : 0;
+            const cpuReqValueEl = document.getElementById('cpuRequestAccuracyValue');
+            cpuReqValueEl.textContent = cpuReqAccuracy + '%';
+            cpuReqValueEl.className = 'card-value ' + (cpuReqAccuracy <= 100 ? 'text-success' : 'text-danger');
+            document.getElementById('cpuRequestAccuracySubtitle').textContent = cpuReqAccuracy <= 100 ? 'of requested CPU is being used' : 'of requested CPU is being used (over limit!)';
+            document.getElementById('cpuRequestAccuracyDetail').textContent = totalCpuRequested.toFixed(1) + ' cores requested, ' + totalCpuActual.toFixed(1) + ' actually used';
+            const cpuReqAdviceEl = document.getElementById('cpuRequestAccuracyAdvice');
+            cpuReqAdviceEl.textContent = cpuReqAccuracy <= 100 ? '💡 Requests well-sized or over-provisioned' : '⚠️ Usage exceeds requests - set proper limits!';
+            cpuReqAdviceEl.className = 'card-advice ' + (cpuReqAccuracy <= 100 ? 'advice-success' : 'advice-danger');
             
-            // Update Memory over-provisioning card
-            const memOverProv = totalMemRequested > 0 ? Math.round((1 - totalMemActual / totalMemRequested) * 100) : 0;
-            document.getElementById('memOverProvValue').textContent = memOverProv + '%';
-            document.getElementById('memOverProvDetail').textContent = totalMemRequested.toFixed(1) + ' GiB requested, ' + totalMemActual.toFixed(1) + ' GiB actually used';
+            // Memory Request Accuracy Card
+            const memReqAccuracy = totalMemRequested > 0 ? Math.round(totalMemActual / totalMemRequested * 100) : 0;
+            const memReqValueEl = document.getElementById('memRequestAccuracyValue');
+            memReqValueEl.textContent = memReqAccuracy + '%';
+            memReqValueEl.className = 'card-value ' + (memReqAccuracy <= 100 ? 'text-success' : 'text-danger');
+            document.getElementById('memRequestAccuracySubtitle').textContent = memReqAccuracy <= 100 ? 'of requested memory is being used' : 'of requested memory is being used (over limit!)';
+            document.getElementById('memRequestAccuracyDetail').textContent = totalMemRequested.toFixed(1) + ' GiB requested, ' + totalMemActual.toFixed(1) + ' GiB actually used';
+            const memReqAdviceEl = document.getElementById('memRequestAccuracyAdvice');
+            memReqAdviceEl.textContent = memReqAccuracy <= 100 ? '💡 Requests well-sized or over-provisioned' : '⚠️ Usage exceeds requests - set proper limits!';
+            memReqAdviceEl.className = 'card-advice ' + (memReqAccuracy <= 100 ? 'advice-success' : 'advice-danger');
             
-            // Update filter indicators
-            const cpuFilterEl = document.getElementById('cpuOverProvFilter');
-            const memFilterEl = document.getElementById('memOverProvFilter');
-            if (filter === 'all') {{
-                cpuFilterEl.classList.add('hidden');
-                memFilterEl.classList.add('hidden');
+            // CPU Capacity Utilization Card
+            const cpuCapUtil = totalCpuCapacity > 0 ? Math.round(totalCpuActual / totalCpuCapacity * 100) : 0;
+            document.getElementById('cpuCapacityValue').textContent = cpuCapUtil + '%';
+            document.getElementById('cpuCapacityDetail').textContent = totalCpuCapacity.toFixed(0) + ' cores capacity, ' + totalCpuActual.toFixed(1) + ' actually used';
+            const cpuCapAdviceEl = document.getElementById('cpuCapacityAdvice');
+            if (cpuCapUtil < 50) {{
+                cpuCapAdviceEl.textContent = 'ℹ️ Low utilization - room to grow';
+                cpuCapAdviceEl.className = 'card-advice advice-info';
+            }} else if (cpuCapUtil < 80) {{
+                cpuCapAdviceEl.textContent = '⚡ Moderate utilization';
+                cpuCapAdviceEl.className = 'card-advice advice-warning';
             }} else {{
-                cpuFilterEl.classList.remove('hidden');
-                cpuFilterEl.innerHTML = 'Filtered: ' + filter + ' <span class="clear-filter" onclick="clearEfficiencyFilter()">✕</span>';
-                memFilterEl.classList.remove('hidden');
-                memFilterEl.innerHTML = 'Filtered: ' + filter + ' <span class="clear-filter" onclick="clearEfficiencyFilter()">✕</span>';
+                cpuCapAdviceEl.textContent = '🔥 High utilization - consider scaling';
+                cpuCapAdviceEl.className = 'card-advice advice-danger';
             }}
+            
+            // Memory Capacity Utilization Card
+            const memCapUtil = totalMemCapacity > 0 ? Math.round(totalMemActual / totalMemCapacity * 100) : 0;
+            document.getElementById('memCapacityValue').textContent = memCapUtil + '%';
+            document.getElementById('memCapacityDetail').textContent = totalMemCapacity.toFixed(0) + ' GiB capacity, ' + totalMemActual.toFixed(1) + ' GiB actually used';
+            const memCapAdviceEl = document.getElementById('memCapacityAdvice');
+            if (memCapUtil < 50) {{
+                memCapAdviceEl.textContent = 'ℹ️ Low utilization - room to grow';
+                memCapAdviceEl.className = 'card-advice advice-info';
+            }} else if (memCapUtil < 80) {{
+                memCapAdviceEl.textContent = '⚡ Moderate utilization';
+                memCapAdviceEl.className = 'card-advice advice-warning';
+            }} else {{
+                memCapAdviceEl.textContent = '🔥 High utilization - consider scaling';
+                memCapAdviceEl.className = 'card-advice advice-danger';
+            }}
+            
+            // Update filter indicators for all 4 cards
+            const filterIndicatorIds = ['cpuRequestAccuracyFilter', 'memRequestAccuracyFilter', 'cpuCapacityFilter', 'memCapacityFilter'];
+            filterIndicatorIds.forEach(id => {{
+                const el = document.getElementById(id);
+                if (el) {{
+                    if (filter === 'all') {{
+                        el.classList.add('hidden');
+                    }} else {{
+                        el.classList.remove('hidden');
+                        el.innerHTML = 'Filtered: ' + filter + ' <span class="clear-filter" onclick="clearEfficiencyFilter()">✕</span>';
+                    }}
+                }}
+            }});
             
             // Update chart titles
             document.getElementById('cpuChartTitle').textContent = 'CPU: Requested vs Actual per Node' + filterLabel;
