@@ -66,7 +66,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             'ip_address': node.ip_address,
             'kubelet_version': node.system_info.kubelet_version,
             'os_image': node.system_info.os_image,
-            'container_runtime': node.system_info.container_runtime
+            'container_runtime': node.system_info.container_runtime,
+            'pods': [{'namespace': p.namespace, 'name': p.name} for p in node.pods]
         })
     
     # Namespace pod distribution - ALL namespaces
@@ -779,6 +780,61 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
         .role-storage {{ background: var(--rh-cyan); color: white; }}
         .role-worker {{ background: var(--rh-gray-600); color: white; }}
         
+        /* Sticky sum footer row */
+        tfoot {{
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }}
+        
+        tfoot tr {{
+            background: var(--rh-gray-700) !important;
+            border-top: 2px solid var(--rh-red);
+        }}
+        
+        tfoot td {{
+            padding: 1rem;
+            font-weight: 700;
+            color: var(--rh-white);
+            background: var(--rh-gray-700);
+        }}
+        
+        tfoot td:first-child {{
+            color: var(--rh-orange);
+        }}
+        
+        .table-scroll {{
+            max-height: 600px;
+            overflow-y: auto;
+        }}
+        
+        /* Filter indicator badge */
+        .filter-indicator {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--rh-gray-700);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--rh-orange);
+            margin-left: 1rem;
+        }}
+        
+        .filter-indicator.hidden {{
+            display: none;
+        }}
+        
+        .filter-indicator .clear-filter {{
+            cursor: pointer;
+            color: var(--rh-gray-400);
+            transition: color 0.2s;
+        }}
+        
+        .filter-indicator .clear-filter:hover {{
+            color: var(--rh-red);
+        }}
+        
         /* Progress bars */
         .progress-bar {{
             height: 8px;
@@ -1441,6 +1497,20 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                             </tr>
                             """ for n in nodes_json])}
                         </tbody>
+                        <tfoot>
+                            <tr id="nodesTableSumRow">
+                                <td>Σ Total (Filtered)</td>
+                                <td id="sumNodeCount">{len(nodes)} nodes</td>
+                                <td id="sumCpuCores">{sum(n['cpu_capacity'] for n in nodes_json):.1f}</td>
+                                <td id="sumCpuRequested">{sum(n['cpu_requested'] for n in nodes_json):.2f}</td>
+                                <td id="sumCpuActual">{sum(n['cpu_actual'] for n in nodes_json):.2f}</td>
+                                <td id="sumMemCapacity">{sum(n['mem_capacity'] for n in nodes_json):.1f}</td>
+                                <td id="sumMemRequested">{sum(n['mem_requested'] for n in nodes_json):.1f}</td>
+                                <td id="sumMemActual">{sum(n['mem_actual'] for n in nodes_json):.1f}</td>
+                                <td id="sumPods">{sum(n['pod_count'] for n in nodes_json)}</td>
+                                <td>-</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -1467,29 +1537,31 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 </div>
             </div>
             
-            <div class="summary-grid">
-                <div class="summary-card highlight">
+            <div class="summary-grid" id="efficiencyCards">
+                <div class="summary-card highlight" id="cpuOverProvCard">
                     <div class="card-header">
                         <span class="card-title">CPU Over-Provisioning</span>
                         <div class="card-icon cpu">⚡</div>
                     </div>
-                    <div class="card-value">{round((1 - summary.total_actual.cpu / max(summary.total_requested.cpu, 1)) * 100, 0):.0f}%</div>
+                    <div class="card-value" id="cpuOverProvValue">{round((1 - summary.total_actual.cpu / max(summary.total_requested.cpu, 1)) * 100, 0):.0f}%</div>
                     <div class="card-subtitle">of requested CPU is unused</div>
-                    <div class="card-detail">
+                    <div class="card-detail" id="cpuOverProvDetail">
                         {round(summary.total_requested.cpu / 1000, 1)} cores requested, {round(summary.total_actual.cpu / 1000, 1)} actually used
                     </div>
+                    <div class="filter-indicator hidden" id="cpuOverProvFilter"></div>
                 </div>
                 
-                <div class="summary-card highlight">
+                <div class="summary-card highlight" id="memOverProvCard">
                     <div class="card-header">
                         <span class="card-title">Memory Over-Provisioning</span>
                         <div class="card-icon memory">🧠</div>
                     </div>
-                    <div class="card-value">{round((1 - summary.total_actual.memory / max(summary.total_requested.memory, 1)) * 100, 0):.0f}%</div>
+                    <div class="card-value" id="memOverProvValue">{round((1 - summary.total_actual.memory / max(summary.total_requested.memory, 1)) * 100, 0):.0f}%</div>
                     <div class="card-subtitle">of requested memory is unused</div>
-                    <div class="card-detail">
+                    <div class="card-detail" id="memOverProvDetail">
                         {round(summary.total_requested.memory / 1024, 1)} GiB requested, {round(summary.total_actual.memory / 1024, 1)} GiB actually used
                     </div>
+                    <div class="filter-indicator hidden" id="memOverProvFilter"></div>
                 </div>
                 
                 <div class="summary-card">
@@ -1505,16 +1577,16 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 </div>
             </div>
             
-            <div class="charts-grid">
+            <div class="charts-grid" id="efficiencyCharts">
                 <div class="chart-card">
-                    <h3 class="chart-title">CPU: Requested vs Actual per Node</h3>
+                    <h3 class="chart-title" id="cpuChartTitle">CPU: Requested vs Actual per Node</h3>
                     <div class="chart-container">
                         <canvas id="cpuEfficiencyChart"></canvas>
                     </div>
                 </div>
                 
                 <div class="chart-card">
-                    <h3 class="chart-title">Memory: Requested vs Actual per Node</h3>
+                    <h3 class="chart-title" id="memChartTitle">Memory: Requested vs Actual per Node</h3>
                     <div class="chart-container">
                         <canvas id="memoryEfficiencyChart"></canvas>
                     </div>
@@ -1587,16 +1659,16 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 </div>
             </div>
             
-            <div class="charts-grid">
+            <div class="charts-grid" id="workloadCharts">
                 <div class="chart-card">
-                    <h3 class="chart-title">Pods by Namespace (All {len(sorted_ns)} namespaces)</h3>
+                    <h3 class="chart-title" id="namespaceChartTitle">Pods by Namespace (All {len(sorted_ns)} namespaces)</h3>
                     <div class="chart-container scrollable" id="namespaceChartContainer">
                         <canvas id="namespaceChart"></canvas>
                     </div>
                 </div>
                 
                 <div class="chart-card">
-                    <h3 class="chart-title">Pods per Node</h3>
+                    <h3 class="chart-title" id="podsPerNodeChartTitle">Pods per Node</h3>
                     <div class="chart-container">
                         <canvas id="podsPerNodeChart"></canvas>
                     </div>
@@ -2043,7 +2115,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             }});
         }});
         
-        // Filter functionality
+        // Filter functionality - Enhanced with sum row and chart updates
         document.querySelectorAll('.filter-btn').forEach(btn => {{
             btn.addEventListener('click', () => {{
                 const tableId = btn.dataset.table;
@@ -2073,9 +2145,153 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     if (countEl) {{
                         countEl.textContent = visibleCount;
                     }}
+                    
+                    // Update sum row for nodesTable
+                    if (tableId === 'nodesTable') {{
+                        updateNodesTableSumRow(filter);
+                    }}
+                    
+                    // Update efficiency tab cards and charts
+                    if (tableId === 'efficiencyTable') {{
+                        updateEfficiencyTabForFilter(filter);
+                    }}
+                    
+                    // Update workloads tab charts
+                    if (tableId === 'workloadTable') {{
+                        updateWorkloadsTabForFilter(filter);
+                    }}
                 }}
             }});
         }});
+        
+        // Function to update the nodes table sum row
+        function updateNodesTableSumRow(filter) {{
+            const filteredNodes = filter === 'all' ? nodesData : nodesData.filter(n => n.role === filter);
+            const count = filteredNodes.length;
+            const cpuCores = filteredNodes.reduce((sum, n) => sum + n.cpu_capacity, 0);
+            const cpuRequested = filteredNodes.reduce((sum, n) => sum + n.cpu_requested, 0);
+            const cpuActual = filteredNodes.reduce((sum, n) => sum + n.cpu_actual, 0);
+            const memCapacity = filteredNodes.reduce((sum, n) => sum + n.mem_capacity, 0);
+            const memRequested = filteredNodes.reduce((sum, n) => sum + n.mem_requested, 0);
+            const memActual = filteredNodes.reduce((sum, n) => sum + n.mem_actual, 0);
+            const pods = filteredNodes.reduce((sum, n) => sum + n.pod_count, 0);
+            
+            document.getElementById('sumNodeCount').textContent = count + ' nodes';
+            document.getElementById('sumCpuCores').textContent = cpuCores.toFixed(1);
+            document.getElementById('sumCpuRequested').textContent = cpuRequested.toFixed(2);
+            document.getElementById('sumCpuActual').textContent = cpuActual.toFixed(2);
+            document.getElementById('sumMemCapacity').textContent = memCapacity.toFixed(1);
+            document.getElementById('sumMemRequested').textContent = memRequested.toFixed(1);
+            document.getElementById('sumMemActual').textContent = memActual.toFixed(1);
+            document.getElementById('sumPods').textContent = pods;
+        }}
+        
+        // Function to update efficiency tab when filter changes
+        function updateEfficiencyTabForFilter(filter) {{
+            const filteredNodes = filter === 'all' ? nodesData : nodesData.filter(n => n.role === filter);
+            const filterLabel = filter === 'all' ? '' : ' (' + filter + ')';
+            
+            // Calculate totals for filtered nodes
+            const totalCpuRequested = filteredNodes.reduce((sum, n) => sum + n.cpu_requested, 0);
+            const totalCpuActual = filteredNodes.reduce((sum, n) => sum + n.cpu_actual, 0);
+            const totalMemRequested = filteredNodes.reduce((sum, n) => sum + n.mem_requested, 0);
+            const totalMemActual = filteredNodes.reduce((sum, n) => sum + n.mem_actual, 0);
+            
+            // Update CPU over-provisioning card
+            const cpuOverProv = totalCpuRequested > 0 ? Math.round((1 - totalCpuActual / totalCpuRequested) * 100) : 0;
+            document.getElementById('cpuOverProvValue').textContent = cpuOverProv + '%';
+            document.getElementById('cpuOverProvDetail').textContent = totalCpuRequested.toFixed(1) + ' cores requested, ' + totalCpuActual.toFixed(1) + ' actually used';
+            
+            // Update Memory over-provisioning card
+            const memOverProv = totalMemRequested > 0 ? Math.round((1 - totalMemActual / totalMemRequested) * 100) : 0;
+            document.getElementById('memOverProvValue').textContent = memOverProv + '%';
+            document.getElementById('memOverProvDetail').textContent = totalMemRequested.toFixed(1) + ' GiB requested, ' + totalMemActual.toFixed(1) + ' GiB actually used';
+            
+            // Update filter indicators
+            const cpuFilterEl = document.getElementById('cpuOverProvFilter');
+            const memFilterEl = document.getElementById('memOverProvFilter');
+            if (filter === 'all') {{
+                cpuFilterEl.classList.add('hidden');
+                memFilterEl.classList.add('hidden');
+            }} else {{
+                cpuFilterEl.classList.remove('hidden');
+                cpuFilterEl.innerHTML = 'Filtered: ' + filter + ' <span class="clear-filter" onclick="clearEfficiencyFilter()">✕</span>';
+                memFilterEl.classList.remove('hidden');
+                memFilterEl.innerHTML = 'Filtered: ' + filter + ' <span class="clear-filter" onclick="clearEfficiencyFilter()">✕</span>';
+            }}
+            
+            // Update chart titles
+            document.getElementById('cpuChartTitle').textContent = 'CPU: Requested vs Actual per Node' + filterLabel;
+            document.getElementById('memChartTitle').textContent = 'Memory: Requested vs Actual per Node' + filterLabel;
+            
+            // Update CPU Efficiency Chart
+            cpuEfficiencyChart.data.labels = filteredNodes.map(n => n.name.split('.')[0]);
+            cpuEfficiencyChart.data.datasets[0].data = filteredNodes.map(n => n.cpu_requested);
+            cpuEfficiencyChart.data.datasets[1].data = filteredNodes.map(n => n.cpu_actual);
+            cpuEfficiencyChart.update();
+            
+            // Update Memory Efficiency Chart
+            memoryEfficiencyChart.data.labels = filteredNodes.map(n => n.name.split('.')[0]);
+            memoryEfficiencyChart.data.datasets[0].data = filteredNodes.map(n => n.mem_requested);
+            memoryEfficiencyChart.data.datasets[1].data = filteredNodes.map(n => n.mem_actual);
+            memoryEfficiencyChart.update();
+        }}
+        
+        // Function to clear efficiency filter
+        function clearEfficiencyFilter() {{
+            const allBtn = document.querySelector('#efficiency .filter-btn[data-filter="all"]');
+            if (allBtn) allBtn.click();
+        }}
+        
+        // Function to update workloads tab when filter changes
+        function updateWorkloadsTabForFilter(filter) {{
+            const filteredNodes = filter === 'all' ? nodesData : nodesData.filter(n => n.role === filter);
+            const filterLabel = filter === 'all' ? '' : ' (' + filter + ')';
+            
+            // Calculate namespace data for filtered nodes only
+            const filteredNsData = {{}};
+            filteredNodes.forEach(node => {{
+                // Find full node data to get pods
+                const fullNode = nodesData.find(n => n.name === node.name);
+                if (fullNode && fullNode.pods) {{
+                    fullNode.pods.forEach(pod => {{
+                        filteredNsData[pod.namespace] = (filteredNsData[pod.namespace] || 0) + 1;
+                    }});
+                }}
+            }});
+            
+            // If we don't have pod details, use the pod_count as estimate
+            if (Object.keys(filteredNsData).length === 0) {{
+                // Fallback: just update the pods per node chart
+            }}
+            
+            // Update Pods per Node chart
+            document.getElementById('podsPerNodeChartTitle').textContent = 'Pods per Node' + filterLabel;
+            podsPerNodeChart.data.labels = filteredNodes.map(n => n.name.split('.')[0]);
+            podsPerNodeChart.data.datasets[0].data = filteredNodes.map(n => n.pod_count);
+            podsPerNodeChart.update();
+            
+            // Update namespace chart title
+            const nsCount = filter === 'all' ? Object.keys(namespaceData).length : Object.keys(filteredNsData).length;
+            document.getElementById('namespaceChartTitle').textContent = 'Pods by Namespace (' + nsCount + ' namespaces)' + filterLabel;
+            
+            // For namespace chart, we need the full pod data which isn't in nodesData
+            // So we'll show a message or keep the full data with a note
+            if (filter !== 'all') {{
+                // Update with filtered namespace data if available
+                if (Object.keys(filteredNsData).length > 0) {{
+                    const sortedFiltered = Object.entries(filteredNsData).sort((a, b) => b[1] - a[1]);
+                    namespaceChart.data.labels = sortedFiltered.map(([k, v]) => k);
+                    namespaceChart.data.datasets[0].data = sortedFiltered.map(([k, v]) => v);
+                    namespaceChart.update();
+                }}
+            }} else {{
+                // Reset to full namespace data
+                namespaceChart.data.labels = Object.keys(namespaceData);
+                namespaceChart.data.datasets[0].data = Object.values(namespaceData);
+                namespaceChart.update();
+            }}
+        }}
         
         // Chart data
         const nodesData = {json.dumps(nodes_json)};
@@ -2159,8 +2375,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             }}
         }});
         
-        // CPU Efficiency Chart
-        new Chart(document.getElementById('cpuEfficiencyChart'), {{
+        // CPU Efficiency Chart - store as variable for updates
+        const cpuEfficiencyChart = new Chart(document.getElementById('cpuEfficiencyChart'), {{
             type: 'bar',
             data: {{
                 labels: nodesData.map(n => n.name.split('.')[0]),
@@ -2199,8 +2415,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             }}
         }});
         
-        // Memory Efficiency Chart
-        new Chart(document.getElementById('memoryEfficiencyChart'), {{
+        // Memory Efficiency Chart - store as variable for updates
+        const memoryEfficiencyChart = new Chart(document.getElementById('memoryEfficiencyChart'), {{
             type: 'bar',
             data: {{
                 labels: nodesData.map(n => n.name.split('.')[0]),
@@ -2248,7 +2464,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
         const nsCanvas = document.getElementById('namespaceChart');
         nsCanvas.style.height = chartHeight + 'px';
         
-        new Chart(nsCanvas, {{
+        // Namespace Chart - store as variable for updates
+        const namespaceChart = new Chart(nsCanvas, {{
             type: 'bar',
             data: {{
                 labels: nsLabels,
@@ -2278,8 +2495,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             }}
         }});
         
-        // Pods per Node Chart
-        new Chart(document.getElementById('podsPerNodeChart'), {{
+        // Pods per Node Chart - store as variable for updates
+        const podsPerNodeChart = new Chart(document.getElementById('podsPerNodeChart'), {{
             type: 'bar',
             data: {{
                 labels: nodesData.map(n => n.name.split('.')[0]),
