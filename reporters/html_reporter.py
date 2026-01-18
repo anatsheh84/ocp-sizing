@@ -1672,14 +1672,14 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                                 <td>{n['cpu_requested']} cores</td>
                                 <td>{n['cpu_actual']} cores</td>
                                 <td>
-                                    <span class="badge {'badge-success' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 100 else 'badge-warning' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 150 else 'badge-danger'}">
+                                    <span class="badge {'badge-danger' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 < 20 else 'badge-warning' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 < 50 else 'badge-success' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 100 else 'badge-warning' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 150 else 'badge-danger'}">
                                         {round(n['cpu_actual']/max(n['cpu_requested'],0.01)*100, 0):.0f}%
                                     </span>
                                 </td>
                                 <td>{n['mem_requested']} GiB</td>
                                 <td>{n['mem_actual']} GiB</td>
                                 <td>
-                                    <span class="badge {'badge-success' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 100 else 'badge-warning' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 150 else 'badge-danger'}">
+                                    <span class="badge {'badge-danger' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 < 20 else 'badge-warning' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 < 50 else 'badge-success' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 100 else 'badge-warning' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 150 else 'badge-danger'}">
                                         {round(n['mem_actual']/max(n['mem_requested'],0.01)*100, 0):.0f}%
                                     </span>
                                 </td>
