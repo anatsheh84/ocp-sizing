@@ -14,14 +14,14 @@ from typing import Optional
 
 
 def export_to_pdf(html_file: str, pdf_file: Optional[str] = None, 
-                  wait_time: int = 2000) -> str:
+                  wait_time: int = 3000) -> str:
     """
     Export HTML report to PDF using headless browser.
     
     Args:
         html_file: Path to HTML file to convert
         pdf_file: Output PDF path (optional, defaults to same name with .pdf)
-        wait_time: Milliseconds to wait for charts to render (default: 2000)
+        wait_time: Milliseconds to wait for charts to render (default: 3000)
         
     Returns:
         Path to generated PDF file
@@ -66,19 +66,61 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
             # Wait for JavaScript charts to render
             page.wait_for_timeout(wait_time)
             
-            # Generate PDF with print settings
+            # Inject CSS to show all tabs for PDF export
+            print(f"   Preparing content for PDF...")
+            page.evaluate("""
+                () => {
+                    // Make all tab content visible for PDF
+                    const tabContents = document.querySelectorAll('.tab-content');
+                    tabContents.forEach(content => {
+                        content.style.display = 'block';
+                        content.style.pageBreakBefore = 'always';
+                    });
+                    
+                    // Hide tab navigation in PDF
+                    const tabNav = document.querySelector('.tab-nav');
+                    if (tabNav) {
+                        tabNav.style.display = 'none';
+                    }
+                    
+                    // Add print-specific styling
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        @media print {
+                            .tab-content {
+                                display: block !important;
+                                page-break-before: always;
+                            }
+                            .tab-nav {
+                                display: none !important;
+                            }
+                            body {
+                                background: white !important;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            """)
+            
+            # Wait a bit for the changes to take effect
+            page.wait_for_timeout(1000)
+            
+            # Generate PDF with print settings (landscape for tables)
+            print(f"   Generating PDF (landscape)...")
             page.pdf(
                 path=str(pdf_path),
                 format='A4',
+                landscape=True,  # Landscape for better table visibility
                 print_background=True,
                 margin={
-                    'top': '0.5in',
-                    'right': '0.5in',
-                    'bottom': '0.5in',
-                    'left': '0.5in'
+                    'top': '0.4in',
+                    'right': '0.4in',
+                    'bottom': '0.4in',
+                    'left': '0.4in'
                 },
                 display_header_footer=False,
-                prefer_css_page_size=True
+                prefer_css_page_size=False
             )
             
             browser.close()
@@ -87,6 +129,17 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
         if pdf_path.exists():
             file_size = pdf_path.stat().st_size / 1024
             print(f"   ✓ PDF generated: {file_size:.1f} KB")
+            
+            # Get page count for feedback
+            try:
+                import PyPDF2
+                with open(pdf_path, 'rb') as f:
+                    pdf_reader = PyPDF2.PdfReader(f)
+                    page_count = len(pdf_reader.pages)
+                    print(f"   ✓ Total pages: {page_count}")
+            except:
+                pass  # PyPDF2 not available, skip page count
+            
             return str(pdf_path)
         else:
             raise RuntimeError("PDF generation failed - file not created")
