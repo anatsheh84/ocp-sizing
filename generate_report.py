@@ -85,6 +85,8 @@ def main():
 Examples:
   %(prog)s -d nodes_describe.txt -t nodes_top.txt
   %(prog)s -d nodes_describe.txt -t nodes_top.txt -p pvs.txt -o report.html
+  %(prog)s -d nodes_describe.txt -t nodes_top.txt --pdf
+  %(prog)s -d nodes_describe.txt -t nodes_top.txt -p pvs.txt -o report.html --pdf
         '''
     )
     
@@ -96,11 +98,13 @@ Examples:
                         help='kubectl get pv -o wide output file (optional)')
     parser.add_argument('-o', '--output', default='ocp_sizing_report.html',
                         help='Output HTML report filename (default: ocp_sizing_report.html)')
+    parser.add_argument('--pdf', action='store_true',
+                        help='Generate PDF export of the report (requires playwright)')
     
     args = parser.parse_args()
     
     print("=" * 80)
-    print("OCP Sizing Calculator v2.0 (Modular)")
+    print("OCP Sizing Calculator v2.1 (PDF Export)")
     print("=" * 80)
     
     # Step 1: Read input files
@@ -155,6 +159,25 @@ Examples:
     
     file_size = Path(args.output).stat().st_size / 1024
     print(f"   ✓ Report generated: {file_size:.1f} KB")
+    
+    # Step 6: Generate PDF if requested
+    if args.pdf:
+        try:
+            from reporters import export_to_pdf, check_playwright_installed, print_installation_instructions
+            
+            # Check if Playwright is installed
+            if not check_playwright_installed():
+                print("\n⚠️  Playwright not installed or Chromium browser missing")
+                print_installation_instructions()
+            else:
+                # Generate PDF with same name as HTML
+                pdf_output = str(Path(args.output).with_suffix('.pdf'))
+                export_to_pdf(args.output, pdf_output)
+        except ImportError:
+            print("\n⚠️  Playwright not installed")
+            print("   Install with: pip install playwright && playwright install chromium")
+        except Exception as e:
+            print(f"\n⚠️  PDF generation failed: {e}")
     
     # Print summary
     print("\n" + "=" * 80)

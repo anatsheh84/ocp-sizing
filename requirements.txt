@@ -6,4 +6,6 @@
 # pytest>=7.0.0        # For unit testing
 # pytest-cov>=4.0.0    # For test coverage
 # rich>=13.0.0         # For CLI progress bars and formatting
-# weasyprint>=60.0     # For PDF generation
+
+# PDF Export (optional)
+playwright>=1.40.0     # For HTML to PDF conversion via headless browser

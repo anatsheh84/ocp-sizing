@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocp-sizing-calculator"
-version = "2.0.0"
+version = "2.1.0"
 description = "OpenShift Container Platform Sizing Calculator - Analyze Kubernetes clusters for OCP migration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -53,7 +53,7 @@ templates = [
     "jinja2>=3.0.0",
 ]
 pdf = [
-    "weasyprint>=60.0",
+    "playwright>=1.40.0",
 ]
 cli = [
     "rich>=13.0.0",

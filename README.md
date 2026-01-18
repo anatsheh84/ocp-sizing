@@ -19,7 +19,8 @@ ocp-sizing-modular/
 │   ├── storage_parser.py       # kubectl get pv
 │   └── utils.py                # Parsing helpers (CPU, memory, etc.)
 └── reporters/                   # Output generation
-    └── html_reporter.py        # Interactive HTML dashboard (2,380 lines)
+    ├── html_reporter.py        # Interactive HTML dashboard (2,380 lines)
+    └── pdf_exporter.py         # PDF export via Playwright (130 lines)
 ```
 
 ## Modularization Changes
@@ -43,12 +44,34 @@ ocp-sizing-modular/
 ## Usage
 
 ```bash
-# Generate report
+# Generate HTML report
 python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt
+
+# Generate HTML + PDF report
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt --pdf
 
 # With custom output
 python3 generate_report.py -d describe.txt -t top.txt -o my_report.html
 ```
+
+## PDF Export
+
+The tool can export reports to PDF format using Playwright headless browser:
+
+```bash
+# First-time setup (one-time only)
+pip install playwright
+playwright install chromium
+
+# Generate PDF
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
+```
+
+**Benefits:**
+- ✅ Preserves all Chart.js visualizations as vector graphics
+- ✅ Maintains full styling and layout
+- ✅ Print-ready quality
+- ✅ ~80 lines of code using browser print engine
 
 ## Benefits of Modular Design
 
