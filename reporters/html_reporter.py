@@ -1404,19 +1404,6 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     </div>
                 </div>
                 
-                <div class="summary-card highlight">
-                    <div class="card-header">
-                        <span class="card-title">CPU Efficiency</span>
-                        <div class="card-icon efficiency">📊</div>
-                    </div>
-                    <div class="card-value">{recommendations['overall']['efficiency_score']:.1f}%</div>
-                    <div class="card-subtitle">actual vs requested</div>
-                    <div class="card-detail">
-                        Requested: {round(summary.total_requested.cpu / 1000, 1)} cores |
-                        Actual: {round(summary.total_actual.cpu / 1000, 1)} cores
-                    </div>
-                </div>
-                
                 <div class="summary-card">
                     <div class="card-header">
                         <span class="card-title">Platform</span>
@@ -1432,9 +1419,16 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             
             <div class="charts-grid">
                 <div class="chart-card">
-                    <h3 class="chart-title">Resource Requests vs Actual Usage</h3>
+                    <h3 class="chart-title">CPU: Capacity vs Requested vs Actual</h3>
                     <div class="chart-container">
-                        <canvas id="requestsVsActualChart"></canvas>
+                        <canvas id="cpuOverviewChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 class="chart-title">Memory: Capacity vs Requested vs Actual</h3>
+                    <div class="chart-container">
+                        <canvas id="memoryOverviewChart"></canvas>
                     </div>
                 </div>
                 
@@ -1476,7 +1470,6 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             
             <div class="table-container">
                 <div class="table-header">
-                    <h3 class="table-title">All Nodes (<span id="nodesTableCount">{len(nodes)}</span>)</h3>
                     <input type="text" class="table-search" placeholder="Search nodes..." onkeyup="filterTable('nodesTable', this.value)">
                 </div>
                 <div class="table-scroll">
@@ -1485,12 +1478,12 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                             <tr>
                                 <th onclick="sortTable('nodesTable', 0)">Node Name</th>
                                 <th onclick="sortTable('nodesTable', 1)">Role</th>
-                                <th onclick="sortTable('nodesTable', 2)">CPU (cores)</th>
+                                <th onclick="sortTable('nodesTable', 2)">CPU Capacity (cores)</th>
                                 <th onclick="sortTable('nodesTable', 3)">CPU Requested</th>
-                                <th onclick="sortTable('nodesTable', 4)">CPU Actual</th>
-                                <th onclick="sortTable('nodesTable', 5)">Memory (GiB)</th>
+                                <th onclick="sortTable('nodesTable', 4)">CPU Used</th>
+                                <th onclick="sortTable('nodesTable', 5)">Memory Capacity (GiB)</th>
                                 <th onclick="sortTable('nodesTable', 6)">Mem Requested</th>
-                                <th onclick="sortTable('nodesTable', 7)">Mem Actual</th>
+                                <th onclick="sortTable('nodesTable', 7)">Memory Used</th>
                                 <th onclick="sortTable('nodesTable', 8)">Pods</th>
                                 <th onclick="sortTable('nodesTable', 9)">Status</th>
                             </tr>
@@ -1679,14 +1672,14 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                                 <td>{n['cpu_requested']} cores</td>
                                 <td>{n['cpu_actual']} cores</td>
                                 <td>
-                                    <span class="badge {'badge-danger' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 < 20 else 'badge-warning' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 < 50 else 'badge-success'}">
+                                    <span class="badge {'badge-success' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 100 else 'badge-warning' if n['cpu_requested'] > 0 and n['cpu_actual']/max(n['cpu_requested'],0.01)*100 <= 150 else 'badge-danger'}">
                                         {round(n['cpu_actual']/max(n['cpu_requested'],0.01)*100, 0):.0f}%
                                     </span>
                                 </td>
                                 <td>{n['mem_requested']} GiB</td>
                                 <td>{n['mem_actual']} GiB</td>
                                 <td>
-                                    <span class="badge {'badge-danger' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 < 20 else 'badge-warning' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 < 50 else 'badge-success'}">
+                                    <span class="badge {'badge-success' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 100 else 'badge-warning' if n['mem_requested'] > 0 and n['mem_actual']/max(n['mem_requested'],0.01)*100 <= 150 else 'badge-danger'}">
                                         {round(n['mem_actual']/max(n['mem_requested'],0.01)*100, 0):.0f}%
                                     </span>
                                 </td>
@@ -2415,36 +2408,22 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             gray: '#6A6E73'
         }};
         
-        // Requests vs Actual Chart
-        new Chart(document.getElementById('requestsVsActualChart'), {{
+        // CPU Overview Chart (Capacity vs Requested vs Actual)
+        new Chart(document.getElementById('cpuOverviewChart'), {{
             type: 'bar',
             data: {{
-                labels: ['CPU (cores)', 'Memory (GiB)'],
-                datasets: [
-                    {{
-                        label: 'Capacity',
-                        data: [{round(summary.total_capacity.cpu / 1000, 1)}, {round(summary.total_capacity.memory / 1024, 1)}],
-                        backgroundColor: colors.gray
-                    }},
-                    {{
-                        label: 'Requested',
-                        data: [{round(summary.total_requested.cpu / 1000, 1)}, {round(summary.total_requested.memory / 1024, 1)}],
-                        backgroundColor: colors.blue
-                    }},
-                    {{
-                        label: 'Actual Usage',
-                        data: [{round(summary.total_actual.cpu / 1000, 1)}, {round(summary.total_actual.memory / 1024, 1)}],
-                        backgroundColor: colors.green
-                    }}
-                ]
+                labels: ['Capacity', 'Requested', 'Actual'],
+                datasets: [{{
+                    label: 'CPU (cores)',
+                    data: [{round(summary.total_capacity.cpu / 1000, 1)}, {round(summary.total_requested.cpu / 1000, 1)}, {round(summary.total_actual.cpu / 1000, 1)}],
+                    backgroundColor: [colors.gray, colors.blue, colors.green]
+                }}]
             }},
             options: {{
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {{
-                    legend: {{
-                        labels: {{ color: '#B8BBBE' }}
-                    }}
+                    legend: {{ display: false }}
                 }},
                 scales: {{
                     x: {{
@@ -2453,7 +2432,39 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     }},
                     y: {{
                         ticks: {{ color: '#B8BBBE' }},
+                        grid: {{ color: '#3C3F42' }},
+                        title: {{ display: true, text: 'Cores', color: '#B8BBBE' }}
+                    }}
+                }}
+            }}
+        }});
+        
+        // Memory Overview Chart (Capacity vs Requested vs Actual)
+        new Chart(document.getElementById('memoryOverviewChart'), {{
+            type: 'bar',
+            data: {{
+                labels: ['Capacity', 'Requested', 'Actual'],
+                datasets: [{{
+                    label: 'Memory (GiB)',
+                    data: [{round(summary.total_capacity.memory / 1024, 1)}, {round(summary.total_requested.memory / 1024, 1)}, {round(summary.total_actual.memory / 1024, 1)}],
+                    backgroundColor: [colors.gray, colors.blue, colors.green]
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    legend: {{ display: false }}
+                }},
+                scales: {{
+                    x: {{
+                        ticks: {{ color: '#B8BBBE' }},
                         grid: {{ color: '#3C3F42' }}
+                    }},
+                    y: {{
+                        ticks: {{ color: '#B8BBBE' }},
+                        grid: {{ color: '#3C3F42' }},
+                        title: {{ display: true, text: 'GiB', color: '#B8BBBE' }}
                     }}
                 }}
             }}
