@@ -1232,6 +1232,197 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 align-items: flex-start;
             }}
         }}
+        
+        /* Print-Optimized Styles */
+        @media print {{
+            /* Hide interactive elements */
+            .nav-tabs,
+            .filter-bar,
+            .export-btn {{
+                display: none !important;
+            }}
+            
+            /* Show all tab content for PDF */
+            .tab-content {{
+                display: block !important;
+                page-break-before: always;
+            }}
+            
+            /* First tab shouldn't have page break */
+            .tab-content:first-of-type {{
+                page-break-before: auto;
+            }}
+            
+            /* Compact spacing for print */
+            body {{
+                font-size: 10pt;
+                line-height: 1.3;
+                background: white !important;
+            }}
+            
+            .container {{
+                max-width: none;
+                padding: 0;
+            }}
+            
+            .main-content {{
+                padding: 0.5rem;
+            }}
+            
+            /* Reduce card padding */
+            .summary-card {{
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+                page-break-inside: avoid;
+            }}
+            
+            /* Compact headers */
+            .section-title {{
+                font-size: 14pt;
+                margin-top: 0.5rem;
+                margin-bottom: 0.5rem;
+                page-break-after: avoid;
+            }}
+            
+            .section-subtitle {{
+                font-size: 9pt;
+                margin-bottom: 0.75rem;
+            }}
+            
+            /* Compact summary grid */
+            .summary-grid {{
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+            }}
+            
+            /* Smaller card values */
+            .card-value {{
+                font-size: 20pt;
+            }}
+            
+            .card-subtitle {{
+                font-size: 8pt;
+            }}
+            
+            /* Keep charts with their containers */
+            .charts-grid {{
+                page-break-inside: avoid;
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }}
+            
+            .chart-container {{
+                page-break-inside: avoid;
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+            }}
+            
+            /* Compact chart titles */
+            .chart-title {{
+                font-size: 10pt;
+                margin-bottom: 0.5rem;
+            }}
+            
+            /* Table optimizations */
+            .table-container {{
+                page-break-inside: avoid;
+                margin-bottom: 1rem;
+            }}
+            
+            table {{
+                font-size: 8pt;
+                page-break-inside: auto;
+            }}
+            
+            thead {{
+                display: table-header-group;
+            }}
+            
+            tr {{
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }}
+            
+            th {{
+                padding: 0.4rem 0.6rem;
+            }}
+            
+            td {{
+                padding: 0.4rem 0.6rem;
+            }}
+            
+            /* Compact architecture diagram */
+            .architecture-diagram {{
+                page-break-inside: avoid;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }}
+            
+            .node-box {{
+                padding: 0.75rem;
+            }}
+            
+            /* Compact recommendation cards */
+            .recommendation-card {{
+                padding: 0.75rem;
+                margin-bottom: 0.75rem;
+                page-break-inside: avoid;
+            }}
+            
+            /* Compact metrics */
+            .metric-group {{
+                margin-bottom: 0.75rem;
+            }}
+            
+            .metric-card {{
+                padding: 0.75rem;
+            }}
+            
+            /* Checklist items */
+            .checklist-item {{
+                padding: 0.5rem 0;
+                page-break-inside: avoid;
+            }}
+            
+            /* Reduce vertical spacing */
+            .stats-card {{
+                padding: 0.75rem;
+                margin-bottom: 0.75rem;
+            }}
+            
+            /* Hide hover effects */
+            *:hover {{
+                transform: none !important;
+                box-shadow: none !important;
+            }}
+            
+            /* Ensure backgrounds print */
+            * {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+            
+            /* Page break controls */
+            .page-break-before {{
+                page-break-before: always;
+            }}
+            
+            .page-break-after {{
+                page-break-after: always;
+            }}
+            
+            .no-page-break {{
+                page-break-inside: avoid;
+            }}
+            
+            /* Footer compact */
+            .footer {{
+                font-size: 7pt;
+                padding: 0.5rem;
+                page-break-inside: avoid;
+            }}
+        }}
     </style>
 </head>
 <body>

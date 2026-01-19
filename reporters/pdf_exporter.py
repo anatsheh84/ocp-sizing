@@ -114,10 +114,10 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
                 landscape=True,  # Landscape for better table visibility
                 print_background=True,
                 margin={
-                    'top': '0.4in',
-                    'right': '0.4in',
-                    'bottom': '0.4in',
-                    'left': '0.4in'
+                    'top': '0.25in',
+                    'right': '0.25in',
+                    'bottom': '0.25in',
+                    'left': '0.25in'
                 },
                 display_header_footer=False,
                 prefer_css_page_size=False
