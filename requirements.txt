@@ -9,3 +9,4 @@
 
 # PDF Export (optional)
 playwright>=1.40.0     # For HTML to PDF conversion via headless browser
+Pillow>=10.0.0         # For image-based PDF compilation

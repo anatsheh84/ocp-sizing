@@ -54,6 +54,7 @@ templates = [
 ]
 pdf = [
     "playwright>=1.40.0",
+    "Pillow>=10.0.0",
 ]
 cli = [
     "rich>=13.0.0",

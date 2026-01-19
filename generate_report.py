@@ -163,11 +163,23 @@ Examples:
     # Step 6: Generate PDF if requested
     if args.pdf:
         try:
-            from reporters import export_to_pdf, check_playwright_installed, print_installation_instructions
+            from reporters import (
+                export_to_pdf, 
+                check_playwright_installed, 
+                check_pillow_installed,
+                print_installation_instructions
+            )
             
-            # Check if Playwright is installed
-            if not check_playwright_installed():
-                print("\n⚠️  Playwright not installed or Chromium browser missing")
+            # Check if dependencies are installed
+            playwright_ok = check_playwright_installed()
+            pillow_ok = check_pillow_installed()
+            
+            if not playwright_ok or not pillow_ok:
+                print("\n⚠️  Missing dependencies for PDF export")
+                if not playwright_ok:
+                    print("   - Playwright not installed or Chromium browser missing")
+                if not pillow_ok:
+                    print("   - Pillow not installed")
                 print_installation_instructions()
             else:
                 # Generate PDF with same name as HTML
