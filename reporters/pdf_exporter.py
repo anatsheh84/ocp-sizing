@@ -107,10 +107,10 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
             page.wait_for_timeout(1000)
             
             # Generate PDF with print settings (landscape for tables)
-            print(f"   Generating PDF (landscape)...")
+            print(f"   Generating PDF (A3 landscape)...")
             page.pdf(
                 path=str(pdf_path),
-                format='A4',
+                format='A3',
                 landscape=True,  # Landscape for better table visibility
                 print_background=True,
                 margin={
