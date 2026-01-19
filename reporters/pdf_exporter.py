@@ -66,9 +66,10 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
             # Launch headless browser
             browser = p.chromium.launch(headless=True)
             
-            # Create page with A3 landscape viewport
-            # A3 landscape: 420mm × 297mm = 4961px × 3508px at 300 DPI
-            page = browser.new_page(viewport={'width': 1920, 'height': 1357})
+            # Create page with viewport sized for A3 landscape
+            # A3 landscape: 420mm × 297mm
+            # Using 2x resolution for quality: 2480 × 1754 pixels (at 150 DPI)
+            page = browser.new_page(viewport={'width': 2480, 'height': 1754})
             
             # Load HTML file
             file_url = f'file://{html_path}'
@@ -116,6 +117,7 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
             file_size = pdf_path.stat().st_size / 1024
             print(f"   ✓ PDF generated: {file_size:.1f} KB")
             print(f"   ✓ Total pages: {len(screenshot_files)}")
+            print(f"   ✓ Page size: A3 landscape (420mm × 297mm)")
             return str(pdf_path)
         else:
             raise RuntimeError("PDF generation failed - file not created")
@@ -139,7 +141,7 @@ def export_to_pdf(html_file: str, pdf_file: Optional[str] = None,
 
 def _compile_images_to_pdf(image_files: List[str], output_pdf: str):
     """
-    Compile a list of image files into a single PDF.
+    Compile a list of image files into a single PDF with A3 landscape pages.
     
     Args:
         image_files: List of image file paths (in order)
@@ -156,29 +158,68 @@ def _compile_images_to_pdf(image_files: List[str], output_pdf: str):
     if not image_files:
         raise ValueError("No images to compile")
     
-    # Open all images
-    images = []
+    # A3 landscape dimensions at 150 DPI
+    # 420mm × 297mm = 16.54" × 11.69" = 2480 × 1754 pixels at 150 DPI
+    target_width = 2480
+    target_height = 1754
+    dpi = 150
+    
+    # Process all images
+    processed_images = []
     for img_path in image_files:
         img = Image.open(img_path)
+        
         # Convert to RGB if needed (PDF requires RGB)
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        images.append(img)
+        
+        # Resize to A3 landscape dimensions if needed
+        if img.size != (target_width, target_height):
+            # Calculate scaling to fit within A3 while maintaining aspect ratio
+            img_ratio = img.width / img.height
+            target_ratio = target_width / target_height
+            
+            if img_ratio > target_ratio:
+                # Image is wider - fit to width
+                new_width = target_width
+                new_height = int(target_width / img_ratio)
+            else:
+                # Image is taller - fit to height
+                new_height = target_height
+                new_width = int(target_height * img_ratio)
+            
+            # Resize with high-quality resampling
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Create A3 canvas and center the image
+            canvas = Image.new('RGB', (target_width, target_height), 'white')
+            offset_x = (target_width - new_width) // 2
+            offset_y = (target_height - new_height) // 2
+            canvas.paste(img, (offset_x, offset_y))
+            img = canvas
+        
+        processed_images.append(img)
     
     # Save first image as PDF, append rest
-    if len(images) == 1:
-        images[0].save(output_pdf, 'PDF', resolution=100.0)
+    if len(processed_images) == 1:
+        processed_images[0].save(
+            output_pdf, 
+            'PDF', 
+            resolution=dpi,
+            optimize=False
+        )
     else:
-        images[0].save(
+        processed_images[0].save(
             output_pdf,
             'PDF',
-            resolution=100.0,
+            resolution=dpi,
             save_all=True,
-            append_images=images[1:]
+            append_images=processed_images[1:],
+            optimize=False
         )
     
     # Close all images
-    for img in images:
+    for img in processed_images:
         img.close()
 
 
