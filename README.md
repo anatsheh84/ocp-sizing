@@ -81,9 +81,19 @@ python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
 4. **Reusability**: Parsers/analyzers can be used by other tools
 5. **Scalability**: Easy to add new report formats (JSON, PDF, etc.)
 
-## Migration from v1.1
+## Web Interface
 
-The old monolithic file is preserved as `ocp_sizing_calculator_v1.1.py.OLD`.
-A compatibility wrapper exists at `ocp_sizing_calculator.py` that forwards to `generate_report.py`.
+The tool includes a web UI for easy access — upload your files and download the report from a browser.
 
-No changes needed to inputs/outputs - all functionality preserved.
+```bash
+# Run locally
+pip install flask gunicorn
+python3 app.py
+
+# Deploy on OpenShift (binary build)
+oc new-project ocp-sizing
+oc new-build --strategy=docker --binary --name=ocp-sizing-calculator
+oc start-build ocp-sizing-calculator --from-dir=. --follow
+oc new-app ocp-sizing-calculator
+oc create route edge ocp-sizing-calculator --service=ocp-sizing-calculator --port=8080
+```
