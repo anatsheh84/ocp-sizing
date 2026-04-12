@@ -1,0 +1,22 @@
+# Docker ignore - keep image small
+.git
+.github
+.claude
+__pycache__
+*.pyc
+*.pyo
+venv/
+.venv/
+*.OLD
+*.html
+.DS_Store
+.mypy_cache
+.pytest_cache
+.ruff_cache
+htmlcov/
+tests/
+openshift/
+README.md
+pyproject.toml
+requirements.txt
+ocp_sizing_calculator.py

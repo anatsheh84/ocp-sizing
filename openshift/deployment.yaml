@@ -1,0 +1,48 @@
+# OpenShift Deployment - OCP Sizing Calculator
+# Usage: oc apply -f openshift/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocp-sizing-calculator
+  labels:
+    app: ocp-sizing-calculator
+    app.kubernetes.io/name: ocp-sizing-calculator
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocp-sizing-calculator
+  template:
+    metadata:
+      labels:
+        app: ocp-sizing-calculator
+    spec:
+      containers:
+        - name: ocp-sizing-calculator
+          image: ocp-sizing-calculator:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          env:
+            - name: PORT
+              value: "8080"

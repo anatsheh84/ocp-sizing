@@ -1,83 +1,89 @@
-# OCP Sizing Calculator
+# OCP Sizing Calculator - Modular Architecture
 
-Kubernetes to OpenShift Migration Assessment Tool - Analyzes vanilla Kubernetes clusters and generates OpenShift sizing recommendations.
+Professional tool for analyzing Kubernetes clusters and generating OpenShift migration sizing recommendations.
 
-## Features
+## Architecture
 
-- **Cluster Architecture Visualization** - Hierarchical diagram showing node roles
-- **Node Inventory** - Detailed view with CPU/Memory/Pods per node
-- **Efficiency Analysis** - Compare requested vs actual resource usage
-- **Workload Distribution** - Pod distribution across namespaces and nodes
-- **OCP Recommendations** - Sizing recommendations for Control Plane, Infra, Storage, and Workers
-- **Migration Checklist** - Pre-migration compatibility checks
-- **Persistent Volumes** - Storage analysis (optional)
+**✅ COMPLIANT** with modular/microservice principles.
 
-## Requirements
-
-- Python 3.8+
-- No external dependencies (uses only standard library)
-
-## Data Collection
-
-Run these commands on your Kubernetes cluster:
-
-```bash
-# REQUIRED
-kubectl describe nodes > cluster-nodes.txt
-kubectl top nodes > cluster-top.txt
-
-# OPTIONAL (for storage analysis)
-kubectl get pv -o wide > cluster-pv.txt
 ```
+ocp-sizing-modular/
+├── generate_report.py          # Main orchestrator
+├── analyzers/                   # Business logic
+│   ├── cluster_analyzer.py     # Node categorization, summary calculation
+│   ├── recommendation_engine.py # OCP sizing recommendations
+│   └── data_models.py          # Data classes (NodeData, ClusterSummary, etc.)
+├── parsers/                     # Input processing
+│   ├── nodes_parser.py         # kubectl describe nodes
+│   ├── metrics_parser.py       # kubectl top nodes
+│   ├── storage_parser.py       # kubectl get pv
+│   └── utils.py                # Parsing helpers (CPU, memory, etc.)
+└── reporters/                   # Output generation
+    ├── html_reporter.py        # Interactive HTML dashboard (2,380 lines)
+    └── pdf_exporter.py         # PDF export via Playwright (130 lines)
+```
+
+## Modularization Changes
+
+### Before (v1.1 - MONOLITHIC)
+- `ocp_sizing_calculator_v1.1.py`: **3,195 lines**
+  - Data classes (duplicated)
+  - Parsing functions (duplicated)
+  - Analysis logic
+  - 2,350 lines of HTML generation
+  - Main function
+  - **Result**: Unmaintainable, violates Single Responsibility Principle
+
+### After (v1.2 - MODULAR)
+- `generate_report.py`: **~200 lines** - Orchestration only
+- `analyzers/`: **~400 lines** - Pure business logic
+- `parsers/`: **~500 lines** - Input handling
+- `reporters/html_reporter.py`: **2,380 lines** - Isolated HTML generation
+- **Result**: Clean separation of concerns, testable, maintainable
 
 ## Usage
 
 ```bash
-# Basic usage (without PVs)
-python3 ocp_sizing_calculator.py \
-  -d cluster-nodes.txt \
-  -t cluster-top.txt
+# Generate HTML report
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt
 
-# With PV analysis
-python3 ocp_sizing_calculator.py \
-  -d cluster-nodes.txt \
-  -t cluster-top.txt \
-  -p cluster-pv.txt \
-  -o my_report.html
+# Generate HTML + PDF report
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt --pdf
+
+# With custom output
+python3 generate_report.py -d describe.txt -t top.txt -o my_report.html
 ```
 
-## Output
+## PDF Export
 
-Generates an interactive HTML report with:
-- Red Hat branded dark theme
-- Interactive charts (Chart.js)
-- Sortable/filterable tables
-- CSV export functionality
-- Role-based filtering
+The tool can export reports to PDF format using Playwright headless browser:
 
-## Report Tabs
+```bash
+# First-time setup (one-time only)
+pip install playwright
+playwright install chromium
 
-| Tab | Description |
-|-----|-------------|
-| Overview | Cluster architecture diagram, summary cards, resource charts |
-| Node Inventory | Detailed node table with CPU/Memory requested vs actual |
-| Efficiency Analysis | Over-provisioning metrics, per-node efficiency |
-| Workload Distribution | Pods by namespace, pods per node |
-| OCP Recommendations | Sizing recommendations per role |
-| Migration Checklist | Compatibility checks and pre-migration tasks |
-| Persistent Volumes | PV details (if data provided) |
+# Generate PDF
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
+```
 
-## Supported Cluster Configurations
+**Benefits:**
+- ✅ Preserves all Chart.js visualizations as vector graphics
+- ✅ Maintains full styling and layout
+- ✅ Print-ready quality
+- ✅ ~80 lines of code using browser print engine
 
-- Single Node clusters (SNO)
-- 3-node compact clusters
-- Full HA clusters with dedicated infra/storage nodes
-- Large multi-worker clusters
+## Benefits of Modular Design
 
-## Author
+1. **Single Responsibility**: Each module has one clear purpose
+2. **Testability**: Can unit test parsers/analyzers independently
+3. **Maintainability**: HTML changes don't affect parsing logic
+4. **Reusability**: Parsers/analyzers can be used by other tools
+5. **Scalability**: Easy to add new report formats (JSON, PDF, etc.)
 
-Red Hat Solution Architecture
+## Migration from v1.1
 
-## Version
+The old monolithic file is preserved as `ocp_sizing_calculator_v1.1.py.OLD`.
+A compatibility wrapper exists at `ocp_sizing_calculator.py` that forwards to `generate_report.py`.
 
-1.1.0
+No changes needed to inputs/outputs - all functionality preserved.

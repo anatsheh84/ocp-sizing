@@ -1,0 +1,33 @@
+# OpenShift BuildConfig - Docker strategy
+# Builds the container image directly on the cluster
+# Usage: oc apply -f openshift/buildconfig.yaml && oc start-build ocp-sizing-calculator
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: ocp-sizing-calculator
+  labels:
+    app: ocp-sizing-calculator
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: ocp-sizing-calculator:latest
+  source:
+    type: Git
+    git:
+      uri: https://github.com/anatsheh84/ocp-sizing.git
+      ref: main
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  triggers:
+    - type: ConfigChange
+---
+# ImageStream to hold the built image
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: ocp-sizing-calculator
+  labels:
+    app: ocp-sizing-calculator

@@ -1,0 +1,12 @@
+# OCP Sizing Calculator - Requirements
+# No external dependencies required - uses Python stdlib only
+
+# Optional dependencies for future enhancements:
+# jinja2>=3.0.0        # For template-based HTML generation
+# pytest>=7.0.0        # For unit testing
+# pytest-cov>=4.0.0    # For test coverage
+# rich>=13.0.0         # For CLI progress bars and formatting
+
+# PDF Export (optional)
+playwright>=1.40.0     # For HTML to PDF conversion via headless browser
+Pillow>=10.0.0         # For image-based PDF compilation
