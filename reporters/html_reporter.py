@@ -18,15 +18,7 @@ from typing import List, Dict
 from models import NodeData, ClusterSummary, PersistentVolume
 
 
-def categorize_node_role(node: NodeData) -> str:
-    """Determine node role from labels/taints"""
-    if 'node-role.kubernetes.io/master' in node.labels or 'node-role.kubernetes.io/control-plane' in node.labels:
-        return 'control-plane'
-    if 'node-role.kubernetes.io/infra' in node.labels:
-        return 'infra'
-    if any('storage' in label.lower() for label in node.labels):
-        return 'storage'
-    return 'worker'
+from analyzers.cluster_analyzer import ClusterAnalyzer
 
 
 def generate_html_report(nodes: List[NodeData], summary: ClusterSummary, 
@@ -37,7 +29,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
     # Prepare data for charts
     nodes_json = []
     for node in nodes:
-        role = categorize_node_role(node)
+        role = ClusterAnalyzer.categorize_node_role(node)
         cpu_req_pct = (node.allocated_requests.cpu / node.allocatable.cpu * 100) if node.allocatable.cpu > 0 else 0
         mem_req_pct = (node.allocated_requests.memory / node.allocatable.memory * 100) if node.allocatable.memory > 0 else 0
         cpu_actual_pct = (node.actual_usage.cpu / node.allocatable.cpu * 100) if node.allocatable.cpu > 0 else 0
@@ -98,7 +90,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
     # Group nodes by role for architecture diagram
     nodes_by_role = {}
     for node in nodes:
-        role = categorize_node_role(node)
+        role = ClusterAnalyzer.categorize_node_role(node)
         if role not in nodes_by_role:
             nodes_by_role[role] = []
         nodes_by_role[role].append({
