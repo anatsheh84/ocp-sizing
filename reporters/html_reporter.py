@@ -30,7 +30,8 @@ def categorize_node_role(node: NodeData) -> str:
 
 
 def generate_html_report(nodes: List[NodeData], summary: ClusterSummary, 
-                        recommendations: Dict, pvs: List[PersistentVolume]) -> str:
+                        recommendations: Dict, pvs: List[PersistentVolume],
+                        include_recommendations: bool = True) -> str:
     """Generate interactive HTML dashboard"""
     
     # Prepare data for charts
@@ -1262,8 +1263,8 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             <div class="nav-tab" data-tab="nodes">Node Inventory</div>
             <div class="nav-tab" data-tab="efficiency">Efficiency Analysis</div>
             <div class="nav-tab" data-tab="workloads">Workload Distribution</div>
-            <div class="nav-tab" data-tab="recommendations">OCP Recommendations</div>
-            <div class="nav-tab" data-tab="checklist">Migration Checklist</div>
+            {'<div class="nav-tab" data-tab="recommendations">OCP Recommendations</div>' if include_recommendations else ''}
+            {'<div class="nav-tab" data-tab="checklist">Migration Checklist</div>' if include_recommendations else ''}
             <div class="nav-tab" data-tab="storage">Persistent Volumes</div>
         </div>
     </nav>
@@ -1766,7 +1767,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
         </div>
         
         <!-- Recommendations Tab -->
-        <div class="tab-content" id="recommendations">
+        {'<div class="tab-content" id="recommendations">' if include_recommendations else '<!--'}
             <div class="section-header">
                 <h2 class="section-title">OpenShift Sizing Recommendations</h2>
                 <p class="section-subtitle">Recommended node configurations for OpenShift based on your current workload</p>
@@ -1901,10 +1902,10 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 {"".join([f'<div class="warning-item"><span class="warning-icon">⚠️</span><span>{warn}</span></div>' for warn in recommendations["overall"]["warnings"]])}
             </div>
             ''' if recommendations["overall"]["warnings"] else ''}
-        </div>
+        {'</div>' if include_recommendations else '-->'}
         
-        <!-- Checklist Tab -->
-        <div class="tab-content" id="checklist">
+        {'<!-- Checklist Tab -->' if include_recommendations else '<!--'}
+        {'<div class="tab-content" id="checklist">' if include_recommendations else ''}
             <div class="section-header">
                 <h2 class="section-title">Migration Checklist</h2>
                 <p class="section-subtitle">Pre-migration compatibility checks and considerations</p>
@@ -2067,7 +2068,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     </div>
                 </div>
             </div>
-        </div>
+        {'</div>' if include_recommendations else '-->'}
         
         <!-- Storage Tab (Always visible, shows "No Data" if no PVs) -->
         <div class="tab-content" id="storage">

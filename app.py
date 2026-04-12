@@ -228,6 +228,16 @@ input[type="file"]:hover {
             </div>
         </div>
 
+        <div class="card">
+            <h2>&#9881; Report Options</h2>
+            <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; font-size:0.9rem;">
+                <input type="checkbox" name="include_recommendations" value="1" style="width:18px; height:18px; accent-color:var(--rh-red); cursor:pointer;">
+                Include Migration Recommendations
+                <span style="font-size:0.7rem; background:var(--rh-gray-700); color:var(--rh-gray-300); padding:0.15rem 0.5rem; border-radius:4px; margin-left:0.25rem;">Work in Progress</span>
+            </label>
+            <div class="hint" style="margin-top:0.4rem; margin-left:1.8rem;">Adds OCP Recommendations &amp; Migration Checklist tabs to the report</div>
+        </div>
+
         <button type="submit" class="submit-btn" id="submitBtn">
             &#128202; Generate Sizing Report
         </button>
@@ -316,7 +326,8 @@ def generate():
         recommendations = rec_engine.generate_recommendations()
 
         # Step 4: Generate HTML report
-        html = generate_html_report(nodes, summary, recommendations, pvs)
+        include_recs = request.form.get('include_recommendations') == '1'
+        html = generate_html_report(nodes, summary, recommendations, pvs, include_recommendations=include_recs)
 
         # Write to temp file and send as download
         tmp = tempfile.NamedTemporaryFile(
