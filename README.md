@@ -1,99 +1,128 @@
-# OCP Sizing Calculator - Modular Architecture
+# OCP Sizing Calculator
 
-Professional tool for analyzing Kubernetes clusters and generating OpenShift migration sizing recommendations.
+Analyze Kubernetes and OpenShift clusters to generate interactive sizing reports with migration recommendations.
 
-## Architecture
+Upload three simple command outputs, get a comprehensive HTML dashboard with resource utilization charts, efficiency analysis, and OpenShift node sizing recommendations.
 
-**✅ COMPLIANT** with modular/microservice principles.
+## Collecting Cluster Data
 
-```
-ocp-sizing-modular/
-├── generate_report.py          # Main orchestrator
-├── analyzers/                   # Business logic
-│   ├── cluster_analyzer.py     # Node categorization, summary calculation
-│   ├── recommendation_engine.py # OCP sizing recommendations
-│   └── data_models.py          # Data classes (NodeData, ClusterSummary, etc.)
-├── parsers/                     # Input processing
-│   ├── nodes_parser.py         # kubectl describe nodes
-│   ├── metrics_parser.py       # kubectl top nodes
-│   ├── storage_parser.py       # kubectl get pv
-│   └── utils.py                # Parsing helpers (CPU, memory, etc.)
-└── reporters/                   # Output generation
-    ├── html_reporter.py        # Interactive HTML dashboard (2,380 lines)
-    └── pdf_exporter.py         # PDF export via Playwright (130 lines)
-```
+Run these commands against your source cluster to generate the input files.
 
-## Modularization Changes
-
-### Before (v1.1 - MONOLITHIC)
-- `ocp_sizing_calculator_v1.1.py`: **3,195 lines**
-  - Data classes (duplicated)
-  - Parsing functions (duplicated)
-  - Analysis logic
-  - 2,350 lines of HTML generation
-  - Main function
-  - **Result**: Unmaintainable, violates Single Responsibility Principle
-
-### After (v1.2 - MODULAR)
-- `generate_report.py`: **~200 lines** - Orchestration only
-- `analyzers/`: **~400 lines** - Pure business logic
-- `parsers/`: **~500 lines** - Input handling
-- `reporters/html_reporter.py`: **2,380 lines** - Isolated HTML generation
-- **Result**: Clean separation of concerns, testable, maintainable
-
-## Usage
+**On Kubernetes:**
 
 ```bash
-# Generate HTML report
-python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt
-
-# Generate HTML + PDF report
-python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt --pdf
-
-# With custom output
-python3 generate_report.py -d describe.txt -t top.txt -o my_report.html
+kubectl describe nodes > nodes_describe.txt
+kubectl top nodes > nodes_top.txt
+kubectl get pv -o wide > pvs.txt          # optional
 ```
 
-## PDF Export
-
-The tool can export reports to PDF format using Playwright headless browser:
+**On OpenShift:**
 
 ```bash
-# First-time setup (one-time only)
-pip install playwright
-playwright install chromium
-
-# Generate PDF
-python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
+oc describe nodes > nodes_describe.txt
+oc adm top nodes > nodes_top.txt
+oc get pv -o wide > pvs.txt               # optional
 ```
 
-**Benefits:**
-- ✅ Preserves all Chart.js visualizations as vector graphics
-- ✅ Maintains full styling and layout
-- ✅ Print-ready quality
-- ✅ ~80 lines of code using browser print engine
-
-## Benefits of Modular Design
-
-1. **Single Responsibility**: Each module has one clear purpose
-2. **Testability**: Can unit test parsers/analyzers independently
-3. **Maintainability**: HTML changes don't affect parsing logic
-4. **Reusability**: Parsers/analyzers can be used by other tools
-5. **Scalability**: Easy to add new report formats (JSON, PDF, etc.)
+> **Note:** The `top nodes` command requires the metrics-server to be running.
+> The PV file is optional — the report will generate without it.
 
 ## Web Interface
 
-The tool includes a web UI for easy access — upload your files and download the report from a browser.
+The tool provides a web UI where users can upload cluster data files, name their reports, and download the generated HTML dashboards. Multiple reports persist in the session and can be downloaded or printed to PDF at any time.
+
+### Run Locally with Podman
 
 ```bash
-# Run locally
+# Build the image
+podman build -t ocp-sizing-calculator .
+
+# Run the container
+podman run -p 8080:8080 ocp-sizing-calculator
+```
+
+Open http://localhost:8080 in your browser.
+
+### Run Locally with Python
+
+```bash
 pip install flask gunicorn
 python3 app.py
+```
 
-# Deploy on OpenShift (binary build)
+Open http://localhost:8080 in your browser.
+
+### Deploy on OpenShift
+
+**Option A — Binary build from local directory (recommended for development):**
+
+```bash
 oc new-project ocp-sizing
 oc new-build --strategy=docker --binary --name=ocp-sizing-calculator
 oc start-build ocp-sizing-calculator --from-dir=. --follow
 oc new-app ocp-sizing-calculator
 oc create route edge ocp-sizing-calculator --service=ocp-sizing-calculator --port=8080
 ```
+
+**Option B — Build from Git repository:**
+
+```bash
+oc new-project ocp-sizing
+oc apply -f openshift/buildconfig.yaml
+oc apply -f openshift/deployment.yaml
+oc apply -f openshift/service-route.yaml
+oc start-build ocp-sizing-calculator --follow
+```
+
+**Rebuild after code changes:**
+
+```bash
+oc start-build ocp-sizing-calculator --from-dir=. --follow
+```
+
+The build uploads the local directory, builds the container image on-cluster, pushes it to the internal registry, and triggers a rolling deployment automatically.
+
+## CLI Usage
+
+The tool can also be used directly from the command line without the web interface:
+
+```bash
+# Generate HTML report
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt
+
+# Custom output filename
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -o my_report.html
+
+# With PDF export (requires playwright and Pillow)
+python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
+```
+
+## Architecture
+
+```
+ocp-sizing-modular/
+├── app.py                       # Flask web interface
+├── generate_report.py           # CLI orchestrator
+├── Dockerfile                   # Container image (Python 3.12, gunicorn)
+├── models/
+│   └── __init__.py              # Data classes (NodeData, ClusterSummary, etc.)
+├── parsers/
+│   ├── nodes_parser.py          # Parse kubectl describe nodes
+│   ├── metrics_parser.py        # Parse kubectl top nodes
+│   ├── storage_parser.py        # Parse kubectl get pv
+│   └── utils.py                 # Unit conversion helpers
+├── analyzers/
+│   ├── cluster_analyzer.py      # Node categorization, resource aggregation
+│   └── recommendation_engine.py # OCP sizing recommendations
+├── reporters/
+│   ├── html_reporter.py         # Interactive HTML dashboard
+│   └── pdf_exporter.py          # PDF export via Playwright (CLI only)
+└── openshift/                   # OpenShift deployment manifests
+    ├── buildconfig.yaml
+    ├── deployment.yaml
+    └── service-route.yaml
+```
+
+## License
+
+MIT
