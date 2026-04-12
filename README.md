@@ -8,20 +8,20 @@ Upload three simple command outputs, get a comprehensive HTML dashboard with res
 
 Run these commands against your source cluster to generate the input files.
 
-**On Kubernetes:**
-
-```bash
-kubectl describe nodes > nodes_describe.txt
-kubectl top nodes > nodes_top.txt
-kubectl get pv -o wide > pvs.txt          # optional
-```
-
 **On OpenShift:**
 
 ```bash
 oc describe nodes > nodes_describe.txt
 oc adm top nodes > nodes_top.txt
 oc get pv -o wide > pvs.txt               # optional
+```
+
+**On Kubernetes:**
+
+```bash
+kubectl describe nodes > nodes_describe.txt
+kubectl top nodes > nodes_top.txt
+kubectl get pv -o wide > pvs.txt          # optional
 ```
 
 > **Note:** The `top nodes` command requires the metrics-server to be running.
@@ -31,19 +31,16 @@ oc get pv -o wide > pvs.txt               # optional
 
 The tool provides a web UI where users can upload cluster data files, name their reports, and download the generated HTML dashboards. Multiple reports persist in the session and can be downloaded or printed to PDF at any time.
 
-### Run Locally with Podman
+### Run with Podman
 
 ```bash
-# Build the image
 podman build -t ocp-sizing-calculator .
-
-# Run the container
 podman run -p 8080:8080 ocp-sizing-calculator
 ```
 
 Open http://localhost:8080 in your browser.
 
-### Run Locally with Python
+### Run with Python
 
 ```bash
 pip install flask gunicorn
@@ -54,7 +51,7 @@ Open http://localhost:8080 in your browser.
 
 ### Deploy on OpenShift
 
-**Option A — Binary build from local directory (recommended for development):**
+**Binary build from local directory (recommended for development):**
 
 ```bash
 oc new-project ocp-sizing
@@ -64,7 +61,7 @@ oc new-app ocp-sizing-calculator
 oc create route edge ocp-sizing-calculator --service=ocp-sizing-calculator --port=8080
 ```
 
-**Option B — Build from Git repository:**
+**Build from Git repository:**
 
 ```bash
 oc new-project ocp-sizing
@@ -80,21 +77,13 @@ oc start-build ocp-sizing-calculator --follow
 oc start-build ocp-sizing-calculator --from-dir=. --follow
 ```
 
-The build uploads the local directory, builds the container image on-cluster, pushes it to the internal registry, and triggers a rolling deployment automatically.
-
 ## CLI Usage
 
 The tool can also be used directly from the command line without the web interface:
 
 ```bash
-# Generate HTML report
 python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -p pvs.txt
-
-# Custom output filename
 python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -o my_report.html
-
-# With PDF export (requires playwright and Pillow)
-python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt --pdf
 ```
 
 ## Architecture
@@ -115,8 +104,7 @@ ocp-sizing-modular/
 │   ├── cluster_analyzer.py      # Node categorization, resource aggregation
 │   └── recommendation_engine.py # OCP sizing recommendations
 ├── reporters/
-│   ├── html_reporter.py         # Interactive HTML dashboard
-│   └── pdf_exporter.py          # PDF export via Playwright (CLI only)
+│   └── html_reporter.py         # Interactive HTML dashboard
 └── openshift/                   # OpenShift deployment manifests
     ├── buildconfig.yaml
     ├── deployment.yaml
