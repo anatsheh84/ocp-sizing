@@ -1,0 +1,31 @@
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocp-sizing-calculator
+  labels:
+    app: ocp-sizing-calculator
+spec:
+  selector:
+    app: ocp-sizing-calculator
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+---
+# Route (OpenShift-specific - exposes the app externally)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ocp-sizing-calculator
+  labels:
+    app: ocp-sizing-calculator
+spec:
+  to:
+    kind: Service
+    name: ocp-sizing-calculator
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
