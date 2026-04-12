@@ -4,11 +4,11 @@ app.py - Web interface for OCP Sizing Calculator.
 """
 
 import os
+import json
 import uuid
-import tempfile
 from datetime import datetime
 from flask import (Flask, request, send_file, render_template_string,
-                   flash, redirect, url_for, jsonify)
+                   flash, redirect, url_for)
 
 from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
 from analyzers import ClusterAnalyzer, RecommendationEngine
@@ -21,8 +21,36 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 REPORTS_DIR = '/tmp/ocp-reports'
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
-# Store generated reports in memory: {report_id: {name, filename, timestamp, path}}
-reports = {}
+
+def _save_report_meta(report_id, meta):
+    """Save report metadata as JSON file next to the HTML."""
+    path = os.path.join(REPORTS_DIR, f'{report_id}.json')
+    with open(path, 'w') as f:
+        json.dump(meta, f)
+
+
+def _load_report_meta(report_id):
+    """Load report metadata from JSON file."""
+    path = os.path.join(REPORTS_DIR, f'{report_id}.json')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def _list_all_reports():
+    """List all reports from filesystem, newest first."""
+    result = []
+    for fname in os.listdir(REPORTS_DIR):
+        if fname.endswith('.json'):
+            rid = fname.replace('.json', '')
+            meta = _load_report_meta(rid)
+            html_path = os.path.join(REPORTS_DIR, f'{rid}.html')
+            if meta and os.path.exists(html_path):
+                meta['id'] = rid
+                result.append(meta)
+    result.sort(key=lambda r: r.get('timestamp', ''), reverse=True)
+    return result
 
 UPLOAD_TEMPLATE = r'''<!DOCTYPE html>
 <html lang="en">
@@ -33,79 +61,44 @@ UPLOAD_TEMPLATE = r'''<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-    --rh-red: #EE0000;
-    --rh-red-dark: #A30000;
-    --rh-black: #151515;
-    --rh-gray-900: #212427;
-    --rh-gray-800: #2D2D2D;
-    --rh-gray-700: #3C3F42;
-    --rh-gray-600: #4D5258;
-    --rh-gray-300: #B8BBBE;
-    --rh-gray-100: #F0F0F0;
-    --rh-white: #FFFFFF;
-    --rh-green: #3E8635;
+    --rh-red: #EE0000; --rh-red-dark: #A30000;
+    --rh-black: #151515; --rh-gray-900: #212427;
+    --rh-gray-800: #2D2D2D; --rh-gray-700: #3C3F42;
+    --rh-gray-600: #4D5258; --rh-gray-300: #B8BBBE;
+    --rh-white: #FFFFFF; --rh-green: #3E8635;
     --rh-green-light: #95D58F;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-    font-family: 'Red Hat Text', -apple-system, sans-serif;
-    background: var(--rh-gray-900);
-    color: var(--rh-white);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    font-family:'Red Hat Text',-apple-system,sans-serif;
+    background:var(--rh-gray-900); color:var(--rh-white);
+    min-height:100vh; display:flex; flex-direction:column;
 }
 .header {
-    width: 100%;
-    background: linear-gradient(135deg, var(--rh-black) 0%, var(--rh-gray-900) 100%);
-    border-bottom: 3px solid var(--rh-red);
-    padding: 1.25rem 2rem;
-    text-align: center;
+    width:100%; background:linear-gradient(135deg,var(--rh-black) 0%,var(--rh-gray-900) 100%);
+    border-bottom:3px solid var(--rh-red); padding:1.25rem 2rem; text-align:center;
 }
 .header h1 { font-family:'Red Hat Display',sans-serif; font-size:1.6rem; font-weight:700; }
 .header p { color:var(--rh-gray-300); font-size:0.85rem; margin-top:0.2rem; }
-.main-layout {
-    display: flex;
-    flex: 1;
-    gap: 0;
-}
+.main-layout { display:flex; flex:1; }
 .left-panel {
-    width: 420px;
-    min-width: 380px;
-    padding: 1.5rem;
-    border-right: 1px solid var(--rh-gray-700);
-    overflow-y: auto;
+    width:420px; min-width:380px; padding:1.5rem;
+    border-right:1px solid var(--rh-gray-700); overflow-y:auto;
 }
 .right-panel {
-    flex: 1;
-    padding: 1.5rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    flex:1; padding:1.5rem 2rem; overflow-y:auto;
 }
 .card {
-    background: var(--rh-gray-800);
-    border: 1px solid var(--rh-gray-700);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.25rem;
+    background:var(--rh-gray-800); border:1px solid var(--rh-gray-700);
+    border-radius:12px; padding:1.5rem; margin-bottom:1.25rem;
 }
 .card h2 {
-    font-family:'Red Hat Display',sans-serif;
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid var(--rh-gray-700);
+    font-family:'Red Hat Display',sans-serif; font-size:1rem; font-weight:600;
+    margin-bottom:0.75rem; padding-bottom:0.6rem; border-bottom:1px solid var(--rh-gray-700);
 }
-.file-group { margin-bottom: 1rem; }
-.file-group label {
-    display: block; font-size:0.82rem; font-weight:500;
-    margin-bottom:0.35rem; color:var(--rh-gray-300);
-}
-.file-group .required { color: var(--rh-red); margin-left:2px; }
+.file-group { margin-bottom:1rem; }
+.file-group label { display:block; font-size:0.82rem; font-weight:500; margin-bottom:0.35rem; color:var(--rh-gray-300); }
+.file-group .required { color:var(--rh-red); margin-left:2px; }
 .file-group .hint { font-size:0.72rem; color:var(--rh-gray-600); margin-top:0.2rem; }
 input[type="file"] {
     width:100%; padding:0.5rem; background:var(--rh-gray-700);
@@ -127,74 +120,53 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
 }
 .submit-btn:hover { background:var(--rh-red-dark); }
 .submit-btn:disabled { background:var(--rh-gray-600); cursor:not-allowed; }
-.flash-msg {
-    padding:0.6rem 0.85rem; border-radius:8px; margin-bottom:0.75rem; font-size:0.82rem;
-}
+.flash-msg { padding:0.6rem 0.85rem; border-radius:8px; margin-bottom:0.75rem; font-size:0.82rem; }
 .flash-error { background:rgba(238,0,0,0.15); border:1px solid var(--rh-red); color:#FF5C5C; }
-.flash-success { background:rgba(62,134,53,0.15); border:1px solid var(--rh-green); color:var(--rh-green-light); }
-
-/* Right panel - empty state */
-.empty-state {
-    text-align:center; color:var(--rh-gray-600);
-}
+.empty-state { text-align:center; color:var(--rh-gray-600); margin-top:4rem; }
 .empty-state .icon { font-size:3rem; margin-bottom:0.75rem; }
 .empty-state p { font-size:0.9rem; }
 
-/* Right panel - report card */
-.report-card {
-    background: var(--rh-gray-800);
-    border: 1px solid var(--rh-green);
-    border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    max-width: 480px;
-    animation: slideIn 0.3s ease;
+.reports-title {
+    font-family:'Red Hat Display',sans-serif; font-size:1.1rem; font-weight:600;
+    margin-bottom:1rem; color:var(--rh-gray-300);
 }
-@keyframes slideIn {
-    from { opacity:0; transform:translateY(15px); }
-    to { opacity:1; transform:translateY(0); }
-}
-.report-card .report-header {
-    display:flex; align-items:center; gap:0.75rem;
-    margin-bottom:1rem; padding-bottom:0.75rem;
-    border-bottom:1px solid var(--rh-gray-700);
-}
-.report-card .report-icon {
-    width:42px; height:42px; background:rgba(62,134,53,0.2);
-    border-radius:10px; display:flex; align-items:center;
-    justify-content:center; font-size:1.3rem;
-}
-.report-card .report-name {
-    font-family:'Red Hat Display',sans-serif;
-    font-size:1rem; font-weight:600;
-}
-.report-card .report-meta {
-    font-size:0.75rem; color:var(--rh-gray-300); margin-top:0.15rem;
-}
-.report-actions {
-    display:flex; gap:0.75rem;
-}
-.report-actions a, .report-actions button {
-    flex:1; display:flex; align-items:center; justify-content:center;
-    gap:0.5rem; padding:0.7rem 1rem; border-radius:8px;
-    font-family:'Red Hat Display',sans-serif; font-size:0.85rem;
-    font-weight:600; text-decoration:none; cursor:pointer;
-    transition: background 0.2s; border:none;
-}
-.btn-download {
-    background:var(--rh-green); color:white;
-}
-.btn-download:hover { background:#2d6b28; }
-.btn-print {
-    background:var(--rh-gray-700); color:var(--rh-gray-300);
-    border:1px solid var(--rh-gray-600) !important;
-}
-.btn-print:hover { background:var(--rh-gray-600); color:white; }
 
-@media (max-width: 860px) {
+.report-item {
+    display:flex; align-items:center; gap:1rem;
+    background:var(--rh-gray-800); border:1px solid var(--rh-gray-700);
+    border-radius:10px; padding:1rem 1.25rem; margin-bottom:0.75rem;
+    transition: border-color 0.2s;
+}
+.report-item:first-of-type {
+    border-color:var(--rh-green);
+}
+.report-item .r-icon {
+    width:38px; height:38px; background:rgba(62,134,53,0.15);
+    border-radius:8px; display:flex; align-items:center;
+    justify-content:center; font-size:1.1rem; flex-shrink:0;
+}
+.report-item .r-info { flex:1; min-width:0; }
+.report-item .r-name {
+    font-family:'Red Hat Display',sans-serif; font-size:0.9rem;
+    font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.report-item .r-meta { font-size:0.72rem; color:var(--rh-gray-300); margin-top:0.15rem; }
+.report-item .r-actions { display:flex; gap:0.5rem; flex-shrink:0; }
+.r-actions a, .r-actions button {
+    display:flex; align-items:center; justify-content:center;
+    gap:0.35rem; padding:0.45rem 0.75rem; border-radius:6px;
+    font-size:0.78rem; font-weight:600; text-decoration:none;
+    cursor:pointer; transition:background 0.2s; border:none;
+    font-family:'Red Hat Display',sans-serif;
+}
+.btn-dl { background:var(--rh-green); color:white; }
+.btn-dl:hover { background:#2d6b28; }
+.btn-pr { background:var(--rh-gray-700); color:var(--rh-gray-300); border:1px solid var(--rh-gray-600) !important; }
+.btn-pr:hover { background:var(--rh-gray-600); color:white; }
+
+@media (max-width:860px) {
     .main-layout { flex-direction:column; }
     .left-panel { width:100%; min-width:unset; border-right:none; border-bottom:1px solid var(--rh-gray-700); }
-    .right-panel { min-height:300px; }
 }
 </style>
 </head>
@@ -203,7 +175,6 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
     <h1>&#9654; OCP Sizing Calculator</h1>
     <p>Upload Kubernetes cluster data &middot; Get OpenShift migration recommendations</p>
 </div>
-
 <div class="main-layout">
 <div class="left-panel">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -237,7 +208,7 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
             <h2>&#9881; Report Options</h2>
             <div class="file-group">
                 <label>Report Name</label>
-                <input type="text" name="report_name" placeholder="e.g. Production Cluster Assessment" value="">
+                <input type="text" name="report_name" placeholder="e.g. Production Cluster Assessment">
             </div>
             <label style="display:flex; align-items:center; gap:0.6rem; cursor:pointer; font-size:0.85rem;">
                 <input type="checkbox" name="include_recommendations" value="1" style="width:16px; height:16px; accent-color:var(--rh-red); cursor:pointer;">
@@ -246,27 +217,27 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
             </label>
             <div class="hint" style="margin-top:0.3rem; margin-left:1.6rem;">Adds OCP Recommendations &amp; Migration Checklist tabs</div>
         </div>
-
-        <button type="submit" class="submit-btn" id="submitBtn">
-            &#128202; Generate Sizing Report
-        </button>
+        <button type="submit" class="submit-btn" id="submitBtn">&#128202; Generate Sizing Report</button>
     </form>
 </div>
 
-<div class="right-panel" id="rightPanel">
-    {% if report %}
-    <div class="report-card">
-        <div class="report-header">
-            <div class="report-icon">&#128203;</div>
-            <div>
-                <div class="report-name">{{ report.name }}</div>
-                <div class="report-meta">Generated {{ report.timestamp }} &middot; {{ report.nodes }} nodes</div>
+<div class="right-panel">
+    {% if reports_list %}
+    <div style="width:100%; max-width:600px;">
+        <div class="reports-title">&#128203; Generated Reports ({{ reports_list|length }})</div>
+        {% for r in reports_list %}
+        <div class="report-item">
+            <div class="r-icon">&#128196;</div>
+            <div class="r-info">
+                <div class="r-name">{{ r.name }}</div>
+                <div class="r-meta">{{ r.timestamp }} &middot; {{ r.nodes }} nodes</div>
+            </div>
+            <div class="r-actions">
+                <a href="/download/{{ r.id }}" class="btn-dl">&#11015; Download</a>
+                <button onclick="printReport('{{ r.id }}')" class="btn-pr">&#128424; Print</button>
             </div>
         </div>
-        <div class="report-actions">
-            <a href="/download/{{ report.id }}" class="btn-download">&#11015; Download HTML</a>
-            <button onclick="printReport('{{ report.id }}')" class="btn-print">&#128424; Print PDF</button>
-        </div>
+        {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">
@@ -283,9 +254,8 @@ document.getElementById('uploadForm').addEventListener('submit', function() {
     btn.disabled = true;
     btn.textContent = '\u23F3 Generating report...';
 });
-
 function printReport(reportId) {
-    var w = window.open('/download/' + reportId, '_blank');
+    var w = window.open('/view/' + reportId, '_blank');
     w.addEventListener('load', function() {
         setTimeout(function() { w.print(); }, 1500);
     });
@@ -298,7 +268,7 @@ function printReport(reportId) {
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template_string(UPLOAD_TEMPLATE, report=None)
+    return render_template_string(UPLOAD_TEMPLATE, reports_list=_list_all_reports())
 
 
 @app.route('/health', methods=['GET'])
@@ -306,24 +276,31 @@ def health():
     return {'status': 'ok'}, 200
 
 
+@app.route('/view/<report_id>')
+def view_report(report_id):
+    """Serve report for in-browser viewing (used by print)."""
+    meta = _load_report_meta(report_id)
+    html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
+    if not meta or not os.path.exists(html_path):
+        return 'Report not found', 404
+    return send_file(html_path, mimetype='text/html')
+
+
 @app.route('/download/<report_id>')
 def download(report_id):
-    """Serve a generated report for download or viewing."""
-    if report_id not in reports:
+    """Serve report as a file download."""
+    meta = _load_report_meta(report_id)
+    html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
+    if not meta or not os.path.exists(html_path):
         flash('Report not found or expired.', 'error')
         return redirect(url_for('index'))
-    r = reports[report_id]
-    if not os.path.exists(r['path']):
-        flash('Report file not found.', 'error')
-        return redirect(url_for('index'))
-    return send_file(r['path'], mimetype='text/html',
-                     as_attachment=request.args.get('dl') == '1',
-                     download_name=r['filename'])
+    return send_file(html_path, mimetype='text/html',
+                     as_attachment=True, download_name=meta['filename'])
 
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    """Process uploaded files, save report, show result panel."""
+    """Process uploaded files, save report, redirect back to index."""
     if 'describe_file' not in request.files or 'top_file' not in request.files:
         flash('Both "describe nodes" and "top nodes" files are required.', 'error')
         return redirect(url_for('index'))
@@ -341,11 +318,10 @@ def generate():
         top_content = top_file.read().decode('utf-8', errors='replace')
 
         if 'Name:' not in describe_content or 'Capacity:' not in describe_content:
-            flash('The "describe nodes" file does not appear to contain valid kubectl describe nodes output.', 'error')
+            flash('Invalid "describe nodes" file.', 'error')
             return redirect(url_for('index'))
-
         if len(top_content.strip().splitlines()) < 2:
-            flash('The "top nodes" file appears to be empty or invalid.', 'error')
+            flash('The "top nodes" file appears empty or invalid.', 'error')
             return redirect(url_for('index'))
 
         pvs = []
@@ -355,11 +331,10 @@ def generate():
 
         nodes = parse_describe_nodes(describe_content)
         if not nodes:
-            flash('No nodes could be parsed from the describe file. Check the file format.', 'error')
+            flash('No nodes could be parsed. Check the file format.', 'error')
             return redirect(url_for('index'))
 
         top_data = parse_top_nodes(top_content)
-
         analyzer = ClusterAnalyzer(nodes, pvs)
         analyzer.merge_metrics(top_data)
         summary = analyzer.calculate_summary()
@@ -371,30 +346,26 @@ def generate():
         html = generate_html_report(nodes, summary, recommendations, pvs,
                                     include_recommendations=include_recs)
 
-        # Report naming
         report_name = request.form.get('report_name', '').strip()
         if not report_name:
             report_name = f'Cluster Report ({len(nodes)} nodes)'
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-        safe_name = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in report_name)
-        filename = f'{safe_name}_{timestamp}.html'
+        ts = datetime.now().strftime('%Y%m%d_%H%M')
+        safe = "".join(c if c.isalnum() or c in (' ','-','_') else '_' for c in report_name)
+        filename = f'{safe}_{ts}.html'
 
-        # Save to ephemeral storage
         report_id = str(uuid.uuid4())[:8]
-        report_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
-        with open(report_path, 'w', encoding='utf-8') as f:
+        html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
+        with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html)
 
-        reports[report_id] = {
-            'id': report_id,
+        _save_report_meta(report_id, {
             'name': report_name,
             'filename': filename,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
             'nodes': len(nodes),
-            'path': report_path,
-        }
+        })
 
-        return render_template_string(UPLOAD_TEMPLATE, report=reports[report_id])
+        return redirect(url_for('index'))
 
     except Exception as e:
         flash(f'Error generating report: {str(e)}', 'error')
