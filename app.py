@@ -298,14 +298,14 @@ OCP_TEMPLATE = r'''<!DOCTYPE html>
         <div class="reports-title">&#128203; Generated Reports ({{ reports_list|length }})</div>
         {% for r in reports_list %}
         <div class="report-item">
-            <div class="r-icon {{ 'r-icon-ocp' if r.tool_type == 'ocp' else 'r-icon-vm' }}">
-                {{ '&#9881;' if r.tool_type == 'ocp' else '&#128300;' }}
+            <div class="r-icon {% if r.tool_type == 'ocp' %}r-icon-ocp{% else %}r-icon-vm{% endif %}">
+                {% if r.tool_type == 'ocp' %}&#9881;{% else %}&#128300;{% endif %}
             </div>
             <div class="r-info">
                 <div class="r-name">{{ r.name }}</div>
                 <div class="r-meta">
-                    <span class="badge {{ 'badge-ocp' if r.tool_type == 'ocp' else 'badge-vm' }}">{{ r.tool_type_label }}</span>
-                    &middot; {{ r.timestamp }} &middot; {{ r.detail }}
+                    <span class="badge {% if r.tool_type == 'ocp' %}badge-ocp{% else %}badge-vm{% endif %}">{{ r.tool_type_label }}</span>
+                    · {{ r.timestamp }} · {{ r.detail }}
                 </div>
             </div>
             <div class="r-actions">
@@ -390,14 +390,14 @@ MIGRATION_TEMPLATE = r'''<!DOCTYPE html>
         <div class="reports-title">&#128203; Generated Reports ({{ reports_list|length }})</div>
         {% for r in reports_list %}
         <div class="report-item">
-            <div class="r-icon {{ 'r-icon-ocp' if r.tool_type == 'ocp' else 'r-icon-vm' }}">
-                {{ '&#9881;' if r.tool_type == 'ocp' else '&#128300;' }}
+            <div class="r-icon {% if r.tool_type == 'ocp' %}r-icon-ocp{% else %}r-icon-vm{% endif %}">
+                {% if r.tool_type == 'ocp' %}&#9881;{% else %}&#128300;{% endif %}
             </div>
             <div class="r-info">
                 <div class="r-name">{{ r.name }}</div>
                 <div class="r-meta">
-                    <span class="badge {{ 'badge-ocp' if r.tool_type == 'ocp' else 'badge-vm' }}">{{ r.tool_type_label }}</span>
-                    &middot; {{ r.timestamp }} &middot; {{ r.detail }}
+                    <span class="badge {% if r.tool_type == 'ocp' %}badge-ocp{% else %}badge-vm{% endif %}">{{ r.tool_type_label }}</span>
+                    · {{ r.timestamp }} · {{ r.detail }}
                 </div>
             </div>
             <div class="r-actions">
@@ -436,12 +436,14 @@ def index():
 
 @app.route('/ocp', methods=['GET'])
 def ocp_tool():
-    return render_template_string(OCP_TEMPLATE, reports_list=_list_all_reports())
+    reports = [r for r in _list_all_reports() if r.get('tool_type') == 'ocp']
+    return render_template_string(OCP_TEMPLATE, reports_list=reports)
 
 
 @app.route('/migration', methods=['GET'])
 def migration_tool():
-    return render_template_string(MIGRATION_TEMPLATE, reports_list=_list_all_reports())
+    reports = [r for r in _list_all_reports() if r.get('tool_type') == 'vm']
+    return render_template_string(MIGRATION_TEMPLATE, reports_list=reports)
 
 
 @app.route('/health', methods=['GET'])
@@ -603,7 +605,7 @@ def generate_migration():
             'name': report_name,
             'filename': filename,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
-            'detail': f'{source_label} &middot; {file_size_kb:.0f} KB',
+            'detail': f'{source_label} · {file_size_kb:.0f} KB',
             'tool_type': 'vm',
             'tool_type_label': f'{source_label} Migration',
         })
