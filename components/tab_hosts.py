@@ -28,31 +28,31 @@ def generate_summary_cards(host_data):
     """Generate summary metric cards for hosts."""
     stats = host_data.get('stats', {})
     
-    return f'''            <div class="metric-cards">
-                <div class="metric-card">
-                    <div class="metric-value">{stats.get('total_hosts', 0)}</div>
-                    <div class="metric-label">Total Hosts</div>
-                    <div class="metric-sublabel">{stats.get('hosts_up', 0)} Up, {stats.get('hosts_down', 0)} Down</div>
+    return f'''            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('total_hosts', 0)}</div>
+                    <div class="stat-label">Total Hosts</div>
+                    <div class="stat-detail">{stats.get('hosts_up', 0)} Up, {stats.get('hosts_down', 0)} Down</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value">{stats.get('total_vcores', 0):,}</div>
-                    <div class="metric-label">Total vCores</div>
-                    <div class="metric-sublabel">{stats.get('total_allocated_vcpus', 0):,} Allocated</div>
+                <div class="stat-card blue">
+                    <div class="stat-value">{stats.get('total_vcores', 0):,}</div>
+                    <div class="stat-label">Total vCores</div>
+                    <div class="stat-detail">{stats.get('total_allocated_vcpus', 0):,} Allocated</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value">{stats.get('total_physical_memory_gb', 0):,} GB</div>
-                    <div class="metric-label">Physical Memory</div>
-                    <div class="metric-sublabel">{stats.get('total_clusters', 0)} Clusters</div>
+                <div class="stat-card green">
+                    <div class="stat-value">{stats.get('total_physical_memory_gb', 0):,} GB</div>
+                    <div class="stat-label">Physical Memory</div>
+                    <div class="stat-detail">{stats.get('total_clusters', 0)} Clusters</div>
                 </div>
-                <div class="metric-card highlight">
-                    <div class="metric-value">{stats.get('avg_cpu_overcommit', 0)}x</div>
-                    <div class="metric-label">Avg CPU Overcommit</div>
-                    <div class="metric-sublabel">{stats.get('min_cpu_overcommit', 0)}x - {stats.get('max_cpu_overcommit', 0)}x</div>
+                <div class="stat-card orange">
+                    <div class="stat-value">{stats.get('avg_cpu_overcommit', 0)}x</div>
+                    <div class="stat-label">Avg CPU Overcommit</div>
+                    <div class="stat-detail">{stats.get('min_cpu_overcommit', 0)}x - {stats.get('max_cpu_overcommit', 0)}x</div>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value">{stats.get('avg_vms_per_host', 0)}</div>
-                    <div class="metric-label">Avg VMs per Host</div>
-                    <div class="metric-sublabel">{stats.get('total_running_vms', 0)} Total VMs</div>
+                <div class="stat-card purple">
+                    <div class="stat-value">{stats.get('avg_vms_per_host', 0)}</div>
+                    <div class="stat-label">Avg VMs per Host</div>
+                    <div class="stat-detail">{stats.get('total_running_vms', 0)} Total VMs</div>
                 </div>
             </div>
 '''
@@ -125,25 +125,25 @@ def generate_charts_section():
     return '''            <div class="charts-grid">
                 <div class="chart-card">
                     <div class="chart-title">CPU Overcommitment by Host</div>
-                    <div class="chart-container">
+                    <div class="chart-container" style="height:600px;">
                         <canvas id="chart-host-cpu-overcommit"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
                     <div class="chart-title">VM Density by Host</div>
-                    <div class="chart-container">
+                    <div class="chart-container" style="height:600px;">
                         <canvas id="chart-host-vm-density"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
                     <div class="chart-title">Hosts by Utilization Level</div>
-                    <div class="chart-container">
+                    <div class="chart-container small">
                         <canvas id="chart-host-utilization"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
                     <div class="chart-title">Hosts by Status</div>
-                    <div class="chart-container">
+                    <div class="chart-container small">
                         <canvas id="chart-host-status"></canvas>
                     </div>
                 </div>

@@ -226,6 +226,7 @@ function initCharts() {{
     initMigrationCharts();
     initTrendsCharts();
     initForecastChart();
+    initHostsCharts();
 }}
 
 function initOverviewCharts() {{
@@ -749,6 +750,86 @@ function initForecastChart() {{
     
     // Initialize with default forecast
     applyForecast();
+}}
+
+// ============================================
+// HOSTS CHARTS
+// ============================================
+function initHostsCharts() {{
+    if (!hostsChartData || Object.keys(hostsChartData).length === 0) return;
+
+    // CPU Overcommitment by Host (horizontal bar)
+    const cpuOcCtx = document.getElementById('chart-host-cpu-overcommit');
+    if (cpuOcCtx && hostsChartData.cpu_overcommit) {{
+        // Shorten labels for display
+        const shortLabels = (hostsChartData.cpu_overcommit.labels || []).map(l => l.replace(/^host-dc01-rhv-/, '').replace(/\.host$/, ''));
+        charts.hostCpuOvercommit = new Chart(cpuOcCtx, {{
+            type: 'bar',
+            data: {{
+                labels: shortLabels,
+                datasets: hostsChartData.cpu_overcommit.datasets || []
+            }},
+            options: {{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ display: false }} }},
+                scales: {{
+                    x: {{ title: {{ display: true, text: 'Overcommit Ratio' }}, beginAtZero: true }}
+                }}
+            }}
+        }});
+    }}
+
+    // VM Density by Host (horizontal bar)
+    const vmDensityCtx = document.getElementById('chart-host-vm-density');
+    if (vmDensityCtx && hostsChartData.vm_density) {{
+        const shortLabels = (hostsChartData.vm_density.labels || []).map(l => l.replace(/^host-dc01-rhv-/, '').replace(/\.host$/, ''));
+        charts.hostVmDensity = new Chart(vmDensityCtx, {{
+            type: 'bar',
+            data: {{
+                labels: shortLabels,
+                datasets: hostsChartData.vm_density.datasets || []
+            }},
+            options: {{
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ display: false }} }},
+                scales: {{
+                    x: {{ title: {{ display: true, text: 'Running VMs' }}, beginAtZero: true }}
+                }}
+            }}
+        }});
+    }}
+
+    // Hosts by Utilization Level (doughnut)
+    const utilCtx = document.getElementById('chart-host-utilization');
+    if (utilCtx && hostsChartData.utilization) {{
+        charts.hostUtilization = new Chart(utilCtx, {{
+            type: 'doughnut',
+            data: hostsChartData.utilization,
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ position: 'bottom' }} }}
+            }}
+        }});
+    }}
+
+    // Hosts by Status (doughnut)
+    const statusCtx = document.getElementById('chart-host-status');
+    if (statusCtx && hostsChartData.status) {{
+        charts.hostStatus = new Chart(statusCtx, {{
+            type: 'doughnut',
+            data: hostsChartData.status,
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ position: 'bottom' }} }}
+            }}
+        }});
+    }}
 }}
 
 // ============================================
