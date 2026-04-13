@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
 """
-app.py - Web interface for OCP Sizing Calculator.
+app.py - Unified Web Interface for:
+  1. OCP Sizing Calculator (Kubernetes cluster analysis)
+  2. VM Migration Assessment (RHV/VMware to OpenShift Virtualization)
 """
 
 import os
 import json
 import uuid
+import tempfile
 from datetime import datetime
 from flask import (Flask, request, send_file, render_template_string,
                    flash, redirect, url_for)
 
+# OCP Sizing imports
 from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
 from analyzers import ClusterAnalyzer, RecommendationEngine
 from reporters import generate_html_report
+
+# VM Migration imports
+from generate_dashboard import generate_dashboard
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'ocp-sizing-dev-key')
@@ -23,14 +30,12 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
 def _save_report_meta(report_id, meta):
-    """Save report metadata as JSON file next to the HTML."""
     path = os.path.join(REPORTS_DIR, f'{report_id}.json')
     with open(path, 'w') as f:
         json.dump(meta, f)
 
 
 def _load_report_meta(report_id):
-    """Load report metadata from JSON file."""
     path = os.path.join(REPORTS_DIR, f'{report_id}.json')
     if not os.path.exists(path):
         return None
@@ -39,7 +44,6 @@ def _load_report_meta(report_id):
 
 
 def _list_all_reports():
-    """List all reports from filesystem, newest first."""
     result = []
     for fname in os.listdir(REPORTS_DIR):
         if fname.endswith('.json'):
@@ -52,21 +56,18 @@ def _list_all_reports():
     result.sort(key=lambda r: r.get('timestamp', ''), reverse=True)
     return result
 
-UPLOAD_TEMPLATE = r'''<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OCP Sizing Calculator</title>
-<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet">
-<style>
+# ─────────────────────────────────────────────
+# Shared CSS (used by all pages)
+# ─────────────────────────────────────────────
+SHARED_CSS = r'''
 :root {
     --rh-red: #EE0000; --rh-red-dark: #A30000;
     --rh-black: #151515; --rh-gray-900: #212427;
     --rh-gray-800: #2D2D2D; --rh-gray-700: #3C3F42;
     --rh-gray-600: #4D5258; --rh-gray-300: #B8BBBE;
     --rh-white: #FFFFFF; --rh-green: #3E8635;
-    --rh-green-light: #95D58F;
+    --rh-green-light: #95D58F; --rh-blue: #0066CC;
+    --rh-purple: #6753AC;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
@@ -85,9 +86,7 @@ body {
     width:420px; min-width:380px; padding:1.5rem;
     border-right:1px solid var(--rh-gray-700); overflow-y:auto;
 }
-.right-panel {
-    flex:1; padding:1.5rem 2rem; overflow-y:auto;
-}
+.right-panel { flex:1; padding:1.5rem 2rem; overflow-y:auto; }
 .card {
     background:var(--rh-gray-800); border:1px solid var(--rh-gray-700);
     border-radius:12px; padding:1.5rem; margin-bottom:1.25rem;
@@ -106,12 +105,12 @@ input[type="file"] {
     color:var(--rh-gray-300); font-size:0.82rem; cursor:pointer;
 }
 input[type="file"]:hover { border-color:var(--rh-red); background:var(--rh-gray-600); }
-input[type="text"] {
+input[type="text"], select {
     width:100%; padding:0.55rem 0.75rem; background:var(--rh-gray-700);
     border:1px solid var(--rh-gray-600); border-radius:8px;
     color:var(--rh-white); font-size:0.85rem; outline:none;
 }
-input[type="text"]:focus { border-color:var(--rh-red); }
+input[type="text"]:focus, select:focus { border-color:var(--rh-red); }
 input[type="text"]::placeholder { color:var(--rh-gray-600); }
 .submit-btn {
     width:100%; padding:0.8rem; background:var(--rh-red); color:white;
@@ -125,26 +124,23 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
 .empty-state { text-align:center; color:var(--rh-gray-600); margin-top:4rem; }
 .empty-state .icon { font-size:3rem; margin-bottom:0.75rem; }
 .empty-state p { font-size:0.9rem; }
-
 .reports-title {
     font-family:'Red Hat Display',sans-serif; font-size:1.1rem; font-weight:600;
     margin-bottom:1rem; color:var(--rh-gray-300);
 }
-
 .report-item {
     display:flex; align-items:center; gap:1rem;
     background:var(--rh-gray-800); border:1px solid var(--rh-gray-700);
     border-radius:10px; padding:1rem 1.25rem; margin-bottom:0.75rem;
     transition: border-color 0.2s;
 }
-.report-item:first-of-type {
-    border-color:var(--rh-green);
-}
+.report-item:first-of-type { border-color:var(--rh-green); }
 .report-item .r-icon {
-    width:38px; height:38px; background:rgba(62,134,53,0.15);
-    border-radius:8px; display:flex; align-items:center;
-    justify-content:center; font-size:1.1rem; flex-shrink:0;
+    width:38px; height:38px; border-radius:8px; display:flex;
+    align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;
 }
+.r-icon-ocp { background:rgba(62,134,53,0.15); }
+.r-icon-vm { background:rgba(103,83,172,0.15); }
 .report-item .r-info { flex:1; min-width:0; }
 .report-item .r-name {
     font-family:'Red Hat Display',sans-serif; font-size:0.9rem;
@@ -163,29 +159,105 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
 .btn-dl:hover { background:#2d6b28; }
 .btn-pr { background:var(--rh-gray-700); color:var(--rh-gray-300); border:1px solid var(--rh-gray-600) !important; }
 .btn-pr:hover { background:var(--rh-gray-600); color:white; }
-
+.badge {
+    display:inline-block; padding:0.12rem 0.5rem; border-radius:4px;
+    font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;
+}
+.badge-ocp { background:rgba(62,134,53,0.2); color:var(--rh-green-light); }
+.badge-vm { background:rgba(103,83,172,0.2); color:#B8A9E0; }
+/* Landing page */
+.landing { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; padding:2rem; }
+.tool-grid { display:flex; gap:1.5rem; margin-top:1.5rem; flex-wrap:wrap; justify-content:center; }
+.tool-card {
+    background:var(--rh-gray-800); border:2px solid var(--rh-gray-700);
+    border-radius:16px; padding:2rem 1.75rem; width:300px;
+    text-decoration:none; color:var(--rh-white); transition:all 0.2s;
+    text-align:center; cursor:pointer; display:block;
+}
+.tool-card:hover { border-color:var(--rh-red); transform:translateY(-3px); }
+.tool-card .tc-icon { font-size:2.5rem; margin-bottom:0.75rem; }
+.tool-card h3 { font-family:'Red Hat Display',sans-serif; font-size:1.15rem; font-weight:700; margin-bottom:0.4rem; }
+.tool-card p { font-size:0.82rem; color:var(--rh-gray-300); line-height:1.5; }
+.tool-card .tc-tag {
+    display:inline-block; margin-top:0.75rem; padding:0.2rem 0.65rem;
+    border-radius:6px; font-size:0.7rem; font-weight:600;
+}
+.tc-tag-ocp { background:rgba(62,134,53,0.2); color:var(--rh-green-light); }
+.tc-tag-vm { background:rgba(103,83,172,0.2); color:#B8A9E0; }
+.back-link {
+    display:inline-flex; align-items:center; gap:0.4rem; color:var(--rh-gray-300);
+    text-decoration:none; font-size:0.82rem; margin-bottom:1rem;
+}
+.back-link:hover { color:var(--rh-white); }
 @media (max-width:860px) {
     .main-layout { flex-direction:column; }
     .left-panel { width:100%; min-width:unset; border-right:none; border-bottom:1px solid var(--rh-gray-700); }
+    .tool-grid { flex-direction:column; align-items:center; }
 }
-</style>
+'''
+
+# ─────────────────────────────────────────────
+# Landing Page Template
+# ─────────────────────────────────────────────
+LANDING_TEMPLATE = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenShift Assessment Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet">
+<style>''' + SHARED_CSS + '''</style>
 </head>
 <body>
 <div class="header">
-    <h1>&#9654; OCP Sizing Calculator</h1>
+    <h1>&#9654; OpenShift Assessment Tools</h1>
+    <p>Cluster sizing &middot; VM migration analysis &middot; Infrastructure planning</p>
+</div>
+<div class="landing">
+    <div class="tool-grid">
+        <a href="/ocp" class="tool-card">
+            <div class="tc-icon">&#9881;</div>
+            <h3>OCP Sizing Calculator</h3>
+            <p>Analyze Kubernetes clusters and generate OpenShift sizing recommendations with node inventory and efficiency analysis.</p>
+            <span class="tc-tag tc-tag-ocp">K8s / OCP &rarr; OCP</span>
+        </a>
+        <a href="/migration" class="tool-card">
+            <div class="tc-icon">&#128300;</div>
+            <h3>VM Migration Assessment</h3>
+            <p>Analyze RHV or VMware environments and generate migration dashboards with complexity scoring and wave planning.</p>
+            <span class="tc-tag tc-tag-vm">RHV / VMware &rarr; OCP-V</span>
+        </a>
+    </div>
+</div>
+</body>
+</html>
+'''
+
+# ─────────────────────────────────────────────
+# OCP Sizing Template
+# ─────────────────────────────────────────────
+OCP_TEMPLATE = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCP Sizing Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet">
+<style>''' + SHARED_CSS + '''</style>
+</head>
+<body>
+<div class="header">
+    <h1>&#9881; OCP Sizing Calculator</h1>
     <p>Upload Kubernetes cluster data &middot; Get OpenShift migration recommendations</p>
 </div>
 <div class="main-layout">
 <div class="left-panel">
+    <a href="/" class="back-link">&larr; Back to tools</a>
     {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-msg flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-    {% endwith %}
-
-    <form method="POST" enctype="multipart/form-data" action="/generate" id="uploadForm">
+    {% if messages %}{% for category, message in messages %}
+    <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+    {% endfor %}{% endif %}{% endwith %}
+    <form method="POST" enctype="multipart/form-data" action="/generate-ocp" id="uploadForm">
         <div class="card">
             <h2>&#128194; Upload Cluster Data</h2>
             <div class="file-group">
@@ -220,17 +292,21 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
         <button type="submit" class="submit-btn" id="submitBtn">&#128202; Generate Sizing Report</button>
     </form>
 </div>
-
 <div class="right-panel">
     {% if reports_list %}
     <div style="width:100%; max-width:600px;">
         <div class="reports-title">&#128203; Generated Reports ({{ reports_list|length }})</div>
         {% for r in reports_list %}
         <div class="report-item">
-            <div class="r-icon">&#128196;</div>
+            <div class="r-icon {{ 'r-icon-ocp' if r.tool_type == 'ocp' else 'r-icon-vm' }}">
+                {{ '&#9881;' if r.tool_type == 'ocp' else '&#128300;' }}
+            </div>
             <div class="r-info">
                 <div class="r-name">{{ r.name }}</div>
-                <div class="r-meta">{{ r.timestamp }} &middot; {{ r.nodes }} nodes</div>
+                <div class="r-meta">
+                    <span class="badge {{ 'badge-ocp' if r.tool_type == 'ocp' else 'badge-vm' }}">{{ r.tool_type_label }}</span>
+                    &middot; {{ r.timestamp }} &middot; {{ r.detail }}
+                </div>
             </div>
             <div class="r-actions">
                 <a href="/download/{{ r.id }}" class="btn-dl">&#11015; Download</a>
@@ -247,28 +323,125 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
     {% endif %}
 </div>
 </div>
-
 <script>
 document.getElementById('uploadForm').addEventListener('submit', function() {
     var btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.textContent = '\u23F3 Generating report...';
+    btn.disabled = true; btn.textContent = '\u23F3 Generating report...';
 });
-function printReport(reportId) {
-    var w = window.open('/view/' + reportId, '_blank');
-    w.addEventListener('load', function() {
-        setTimeout(function() { w.print(); }, 1500);
-    });
-}
+function printReport(id) { var w = window.open('/view/' + id, '_blank'); w.addEventListener('load', function() { setTimeout(function() { w.print(); }, 1500); }); }
 </script>
-</body>
-</html>
+</body></html>
 '''
 
+# ─────────────────────────────────────────────
+# VM Migration Assessment Template
+# ─────────────────────────────────────────────
+MIGRATION_TEMPLATE = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VM Migration Assessment</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet">
+<style>''' + SHARED_CSS + '''</style>
+</head>
+<body>
+<div class="header">
+    <h1>&#128300; VM Migration Assessment</h1>
+    <p>Analyze RHV or VMware environments &middot; Plan migration to OpenShift Virtualization</p>
+</div>
+<div class="main-layout">
+<div class="left-panel">
+    <a href="/" class="back-link">&larr; Back to tools</a>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+    <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+    {% endfor %}{% endif %}{% endwith %}
+    <form method="POST" enctype="multipart/form-data" action="/generate-migration" id="uploadForm">
+        <div class="card">
+            <h2>&#128194; Upload Virtualization Data</h2>
+            <div class="file-group">
+                <label>Source Platform<span class="required">*</span></label>
+                <select name="source_platform" required>
+                    <option value="rhv">Red Hat Virtualization (RHV)</option>
+                    <option value="vmware">VMware vSphere (RVTools)</option>
+                </select>
+                <div class="hint">Select the platform your export file comes from</div>
+            </div>
+            <div class="file-group">
+                <label>Export File (.xlsx)<span class="required">*</span></label>
+                <input type="file" name="export_file" accept=".xlsx,.xls,.xlsm" required>
+                <div class="hint">RHV: Admin Portal VM export &middot; VMware: RVTools vInfo export</div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>&#9881; Report Options</h2>
+            <div class="file-group">
+                <label>Report Name</label>
+                <input type="text" name="report_name" placeholder="e.g. Customer RHV Migration Assessment">
+            </div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">&#128300; Generate Migration Dashboard</button>
+    </form>
+</div>
+<div class="right-panel">
+    {% if reports_list %}
+    <div style="width:100%; max-width:600px;">
+        <div class="reports-title">&#128203; Generated Reports ({{ reports_list|length }})</div>
+        {% for r in reports_list %}
+        <div class="report-item">
+            <div class="r-icon {{ 'r-icon-ocp' if r.tool_type == 'ocp' else 'r-icon-vm' }}">
+                {{ '&#9881;' if r.tool_type == 'ocp' else '&#128300;' }}
+            </div>
+            <div class="r-info">
+                <div class="r-name">{{ r.name }}</div>
+                <div class="r-meta">
+                    <span class="badge {{ 'badge-ocp' if r.tool_type == 'ocp' else 'badge-vm' }}">{{ r.tool_type_label }}</span>
+                    &middot; {{ r.timestamp }} &middot; {{ r.detail }}
+                </div>
+            </div>
+            <div class="r-actions">
+                <a href="/download/{{ r.id }}" class="btn-dl">&#11015; Download</a>
+                <button onclick="printReport('{{ r.id }}')" class="btn-pr">&#128424; Print</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">&#128300;</div>
+        <p>Upload a virtualization export to generate a migration dashboard</p>
+    </div>
+    {% endif %}
+</div>
+</div>
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = '\u23F3 Generating dashboard...';
+});
+function printReport(id) { var w = window.open('/view/' + id, '_blank'); w.addEventListener('load', function() { setTimeout(function() { w.print(); }, 1500); }); }
+</script>
+</body></html>
+'''
+
+# ─────────────────────────────────────────────
+# Routes
+# ─────────────────────────────────────────────
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template_string(UPLOAD_TEMPLATE, reports_list=_list_all_reports())
+    return render_template_string(LANDING_TEMPLATE)
+
+
+@app.route('/ocp', methods=['GET'])
+def ocp_tool():
+    return render_template_string(OCP_TEMPLATE, reports_list=_list_all_reports())
+
+
+@app.route('/migration', methods=['GET'])
+def migration_tool():
+    return render_template_string(MIGRATION_TEMPLATE, reports_list=_list_all_reports())
 
 
 @app.route('/health', methods=['GET'])
@@ -278,17 +451,14 @@ def health():
 
 @app.route('/view/<report_id>')
 def view_report(report_id):
-    """Serve report for in-browser viewing (used by print)."""
     meta = _load_report_meta(report_id)
     html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
     if not meta or not os.path.exists(html_path):
         return 'Report not found', 404
     return send_file(html_path, mimetype='text/html')
 
-
 @app.route('/download/<report_id>')
 def download(report_id):
-    """Serve report as a file download."""
     meta = _load_report_meta(report_id)
     html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
     if not meta or not os.path.exists(html_path):
@@ -298,12 +468,14 @@ def download(report_id):
                      as_attachment=True, download_name=meta['filename'])
 
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    """Process uploaded files, save report, redirect back to index."""
+# ─────────────────────────────────────────────
+# OCP Sizing - Generate Route
+# ─────────────────────────────────────────────
+@app.route('/generate-ocp', methods=['POST'])
+def generate_ocp():
     if 'describe_file' not in request.files or 'top_file' not in request.files:
         flash('Both "describe nodes" and "top nodes" files are required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('ocp_tool'))
 
     describe_file = request.files['describe_file']
     top_file = request.files['top_file']
@@ -311,7 +483,7 @@ def generate():
 
     if describe_file.filename == '' or top_file.filename == '':
         flash('Please select both required files.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('ocp_tool'))
 
     try:
         describe_content = describe_file.read().decode('utf-8', errors='replace')
@@ -319,10 +491,10 @@ def generate():
 
         if 'Name:' not in describe_content or 'Capacity:' not in describe_content:
             flash('Invalid "describe nodes" file.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('ocp_tool'))
         if len(top_content.strip().splitlines()) < 2:
             flash('The "top nodes" file appears empty or invalid.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('ocp_tool'))
 
         pvs = []
         if pvs_file and pvs_file.filename != '':
@@ -332,7 +504,7 @@ def generate():
         nodes = parse_describe_nodes(describe_content)
         if not nodes:
             flash('No nodes could be parsed. Check the file format.', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('ocp_tool'))
 
         top_data = parse_top_nodes(top_content)
         analyzer = ClusterAnalyzer(nodes, pvs)
@@ -350,7 +522,7 @@ def generate():
         if not report_name:
             report_name = f'Cluster Report ({len(nodes)} nodes)'
         ts = datetime.now().strftime('%Y%m%d_%H%M')
-        safe = "".join(c if c.isalnum() or c in (' ','-','_') else '_' for c in report_name)
+        safe = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in report_name)
         filename = f'{safe}_{ts}.html'
 
         report_id = str(uuid.uuid4())[:8]
@@ -363,13 +535,87 @@ def generate():
             'filename': filename,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
             'nodes': len(nodes),
+            'detail': f'{len(nodes)} nodes',
+            'tool_type': 'ocp',
+            'tool_type_label': 'OCP Sizing',
         })
 
-        return redirect(url_for('index'))
+        return redirect(url_for('ocp_tool'))
 
     except Exception as e:
         flash(f'Error generating report: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('ocp_tool'))
+
+
+# ─────────────────────────────────────────────
+# VM Migration - Generate Route
+# ─────────────────────────────────────────────
+@app.route('/generate-migration', methods=['POST'])
+def generate_migration():
+    if 'export_file' not in request.files:
+        flash('An export file (.xlsx) is required.', 'error')
+        return redirect(url_for('migration_tool'))
+
+    export_file = request.files['export_file']
+    source = request.form.get('source_platform', 'rhv')
+
+    if export_file.filename == '':
+        flash('Please select an export file.', 'error')
+        return redirect(url_for('migration_tool'))
+
+    if not export_file.filename.lower().endswith(('.xlsx', '.xls', '.xlsm')):
+        flash('Please upload an Excel file (.xlsx, .xls, .xlsm).', 'error')
+        return redirect(url_for('migration_tool'))
+
+    try:
+        # Save uploaded file to a temp location for pandas to read
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(tmp_fd)
+        export_file.save(tmp_path)
+
+        # Generate dashboard HTML to a temp output file
+        report_id = str(uuid.uuid4())[:8]
+        html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
+
+        generate_dashboard(tmp_path, output_file=html_path, source=source)
+
+        # Clean up temp upload
+        os.unlink(tmp_path)
+
+        # Read the generated HTML to extract VM count for metadata
+        source_names = {'rhv': 'RHV', 'vmware': 'VMware'}
+        source_label = source_names.get(source, source.upper())
+
+        # Get VM count from the generated data
+        from data_processor import process_excel
+        # Re-process is wasteful but simple; alternatively parse from the HTML
+        # For now, just use the file size as a proxy
+        file_size_kb = os.path.getsize(html_path) / 1024
+
+        report_name = request.form.get('report_name', '').strip()
+        if not report_name:
+            report_name = f'{source_label} Migration Assessment'
+        ts = datetime.now().strftime('%Y%m%d_%H%M')
+        safe = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in report_name)
+        filename = f'{safe}_{ts}.html'
+
+        _save_report_meta(report_id, {
+            'name': report_name,
+            'filename': filename,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'detail': f'{source_label} &middot; {file_size_kb:.0f} KB',
+            'tool_type': 'vm',
+            'tool_type_label': f'{source_label} Migration',
+        })
+
+        return redirect(url_for('migration_tool'))
+
+    except Exception as e:
+        # Clean up temp file on error
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        flash(f'Error generating dashboard: {str(e)}', 'error')
+        return redirect(url_for('migration_tool'))
 
 
 if __name__ == '__main__':

@@ -1,3 +1,7 @@
-# OCP Sizing Calculator - Web Interface Dependencies
+# OpenShift Assessment Tools - Web Interface Dependencies
 flask>=3.0.0
 gunicorn>=21.2.0
+
+# VM Migration Assessment (pandas for Excel processing)
+pandas>=2.0.0
+openpyxl>=3.1.0
