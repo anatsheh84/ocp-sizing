@@ -47,7 +47,7 @@ from components import (
 )
 
 
-def generate_dashboard(input_file, output_file=None, source='rhv'):
+def generate_dashboard(input_file, output_file=None, source='rhv', hosts_file=None):
     """
     Generate the complete HTML dashboard from an Excel file.
     
@@ -55,6 +55,7 @@ def generate_dashboard(input_file, output_file=None, source='rhv'):
         input_file: Path to virtualization export file
         output_file: Path for output HTML (optional)
         source: Source platform ('rhv' or 'vmware')
+        hosts_file: Optional separate hosts Excel file path
         
     Returns:
         Path to generated HTML file
@@ -76,7 +77,7 @@ def generate_dashboard(input_file, output_file=None, source='rhv'):
     
     # Step 1: Process Excel data
     print("Step 1/4: Processing Excel data...")
-    data = process_excel(input_file, source=source)
+    data = process_excel(input_file, source=source, hosts_filepath=hosts_file)
     print(f"  ✓ Loaded {data['stats']['total_vms']} VMs")
     print(f"  ✓ {data['stats']['total_vcpus']} vCPUs, {data['stats']['total_memory_gb']} GB Memory")
     if data.get('has_date_data'):

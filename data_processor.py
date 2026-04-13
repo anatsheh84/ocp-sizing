@@ -9,13 +9,14 @@ from sources import get_processor
 from sources.rhv_hosts_processor import RHVHostsProcessor
 
 
-def process_excel(filepath, source='rhv'):
+def process_excel(filepath, source='rhv', hosts_filepath=None):
     """
     Process virtualization export file.
     
     Args:
         filepath: Path to the export file
         source: Source platform ('rhv' or 'vmware')
+        hosts_filepath: Optional separate hosts Excel file
         
     Returns:
         Dictionary with all data needed by dashboard tabs (including host_data)
@@ -24,12 +25,13 @@ def process_excel(filepath, source='rhv'):
     processor = get_processor(source)
     vm_data = processor.process(filepath)
     
-    # Process host data (if available in second sheet)
+    # Process host data (from separate file or second sheet)
     host_data = {}
     if source == 'rhv':
         try:
             hosts_processor = RHVHostsProcessor()
-            host_data = hosts_processor.process(filepath, vm_data=vm_data)
+            hosts_source = hosts_filepath if hosts_filepath else filepath
+            host_data = hosts_processor.process(hosts_source, vm_data=vm_data)
         except Exception as e:
             # Host data not available - continue without it
             host_data = {

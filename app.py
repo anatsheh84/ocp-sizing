@@ -373,6 +373,11 @@ MIGRATION_TEMPLATE = r'''<!DOCTYPE html>
                 <input type="file" name="export_file" accept=".xlsx,.xls,.xlsm" required>
                 <div class="hint">RHV: Admin Portal VM export &middot; VMware: RVTools vInfo export</div>
             </div>
+            <div class="file-group">
+                <label>Hosts File (.xlsx) <span style="color:var(--rh-gray-600)">(optional)</span></label>
+                <input type="file" name="hosts_file" accept=".xlsx,.xls,.xlsm">
+                <div class="hint">RHV: Separate hosts export &middot; Enables Hosts Inventory tab</div>
+            </div>
         </div>
         <div class="card">
             <h2>&#9881; Report Options</h2>
@@ -575,14 +580,25 @@ def generate_migration():
         os.close(tmp_fd)
         export_file.save(tmp_path)
 
+        # Save hosts file if provided
+        hosts_tmp_path = None
+        hosts_file = request.files.get('hosts_file')
+        if hosts_file and hosts_file.filename != '':
+            hosts_fd, hosts_tmp_path = tempfile.mkstemp(suffix='.xlsx')
+            os.close(hosts_fd)
+            hosts_file.save(hosts_tmp_path)
+
         # Generate dashboard HTML to a temp output file
         report_id = str(uuid.uuid4())[:8]
         html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
 
-        generate_dashboard(tmp_path, output_file=html_path, source=source)
+        generate_dashboard(tmp_path, output_file=html_path, source=source,
+                           hosts_file=hosts_tmp_path)
 
-        # Clean up temp upload
+        # Clean up temp uploads
         os.unlink(tmp_path)
+        if hosts_tmp_path and os.path.exists(hosts_tmp_path):
+            os.unlink(hosts_tmp_path)
 
         # Read the generated HTML to extract VM count for metadata
         source_names = {'rhv': 'RHV', 'vmware': 'VMware'}
@@ -613,9 +629,11 @@ def generate_migration():
         return redirect(url_for('migration_tool'))
 
     except Exception as e:
-        # Clean up temp file on error
+        # Clean up temp files on error
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+        if 'hosts_tmp_path' in locals() and hosts_tmp_path and os.path.exists(hosts_tmp_path):
+            os.unlink(hosts_tmp_path)
         flash(f'Error generating dashboard: {str(e)}', 'error')
         return redirect(url_for('migration_tool'))
 
