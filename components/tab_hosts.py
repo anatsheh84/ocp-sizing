@@ -30,32 +30,63 @@ def generate_summary_cards(host_data):
     
     return f'''            <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('total_hosts', 0)}</div>
                     <div class="stat-label">Total Hosts</div>
+                    <div class="stat-value">{stats.get('total_hosts', 0)}</div>
                     <div class="stat-detail">{stats.get('hosts_up', 0)} Up, {stats.get('hosts_down', 0)} Down</div>
                 </div>
                 <div class="stat-card blue">
-                    <div class="stat-value">{stats.get('total_vcores', 0):,}</div>
                     <div class="stat-label">Total vCores</div>
+                    <div class="stat-value">{stats.get('total_vcores', 0):,}</div>
                     <div class="stat-detail">{stats.get('total_allocated_vcpus', 0):,} Allocated</div>
                 </div>
                 <div class="stat-card green">
-                    <div class="stat-value">{stats.get('total_physical_memory_gb', 0):,} GB</div>
                     <div class="stat-label">Physical Memory</div>
+                    <div class="stat-value">{stats.get('total_physical_memory_gb', 0):,} GB</div>
                     <div class="stat-detail">{stats.get('total_clusters', 0)} Clusters</div>
                 </div>
                 <div class="stat-card orange">
-                    <div class="stat-value">{stats.get('avg_cpu_overcommit', 0)}x</div>
                     <div class="stat-label">Avg CPU Overcommit</div>
+                    <div class="stat-value">{stats.get('avg_cpu_overcommit', 0)}x</div>
                     <div class="stat-detail">{stats.get('min_cpu_overcommit', 0)}x - {stats.get('max_cpu_overcommit', 0)}x</div>
                 </div>
                 <div class="stat-card purple">
-                    <div class="stat-value">{stats.get('avg_vms_per_host', 0)}</div>
                     <div class="stat-label">Avg VMs per Host</div>
+                    <div class="stat-value">{stats.get('avg_vms_per_host', 0)}</div>
                     <div class="stat-detail">{stats.get('total_running_vms', 0)} Total VMs</div>
                 </div>
             </div>
 '''
+
+
+def get_status_badge_class(status_name):
+    """Get badge class for host status."""
+    if status_name == 'Up':
+        return 'badge-on'
+    elif status_name in ('Down', 'Error', 'Non-Responsive'):
+        return 'badge-high'
+    return 'badge-medium'
+
+
+def get_utilization_badge_class(category):
+    """Get badge class for utilization category."""
+    badge_map = {
+        'Low': 'badge-low',
+        'Medium': 'badge-medium',
+        'High': 'badge-high',
+        'Critical': 'badge-high'
+    }
+    return badge_map.get(category, 'badge-medium')
+
+
+def get_overcommit_color(ratio):
+    """Get inline color style for overcommit ratio."""
+    if ratio >= 4.0:
+        return 'color: #e74c3c; font-weight: 700;'
+    elif ratio >= 2.5:
+        return 'color: #e67e22; font-weight: 700;'
+    elif ratio >= 1.5:
+        return 'color: #f39c12; font-weight: 600;'
+    return 'color: #27ae60; font-weight: 600;'
 
 
 def generate_hosts_table(host_data):
@@ -65,13 +96,9 @@ def generate_hosts_table(host_data):
     # Build table rows
     rows = ''
     for host in host_list:
-        # Status badge
-        status = host['status_name']
-        status_class = 'badge-success' if status == 'Up' else 'badge-danger' if status in ['Down', 'Error', 'Non-Responsive'] else 'badge-warning'
-        
-        # Utilization badge
-        util_cat = host['utilization_category']
-        util_class = 'badge-success' if util_cat == 'Low' else 'badge-warning' if util_cat == 'Medium' else 'badge-danger' if util_cat in ['High', 'Critical'] else 'badge-secondary'
+        status_class = get_status_badge_class(host['status_name'])
+        util_class = get_utilization_badge_class(host['utilization_category'])
+        oc_style = get_overcommit_color(host['cpu_overcommit'])
         
         rows += f'''                            <tr>
                                 <td><span class="host-name">{host['host_name']}</span></td>
@@ -82,9 +109,9 @@ def generate_hosts_table(host_data):
                                 <td class="text-right">{host['physical_mem_gb']}</td>
                                 <td class="text-center">{host['running_vms']}</td>
                                 <td class="text-center">{host['allocated_vcpus']}</td>
-                                <td class="text-center"><strong>{host['cpu_overcommit']}x</strong></td>
-                                <td class="text-center"><span class="badge {util_class}">{util_cat}</span></td>
-                                <td class="text-center"><span class="badge {status_class}">{status}</span></td>
+                                <td class="text-center" style="{oc_style}">{host['cpu_overcommit']}x</td>
+                                <td class="text-center"><span class="badge {util_class}">{host['utilization_category']}</span></td>
+                                <td class="text-center"><span class="badge {status_class}">{host['status_name']}</span></td>
                             </tr>
 '''
     
@@ -168,8 +195,8 @@ def generate_tab_hosts(data):
         return generate_no_data_message()
     
     html = generate_summary_cards(host_data)
-    html += generate_hosts_table(host_data)
     html += generate_charts_section()
+    html += generate_hosts_table(host_data)
     
     return html
 

@@ -159,6 +159,8 @@ input[type="text"]::placeholder { color:var(--rh-gray-600); }
 .btn-dl:hover { background:#2d6b28; }
 .btn-pr { background:var(--rh-gray-700); color:var(--rh-gray-300); border:1px solid var(--rh-gray-600) !important; }
 .btn-pr:hover { background:var(--rh-gray-600); color:white; }
+.btn-del { background:transparent; color:var(--rh-gray-600); border:1px solid var(--rh-gray-700) !important; }
+.btn-del:hover { background:rgba(238,0,0,0.1); color:var(--rh-red); border-color:var(--rh-red) !important; }
 .badge {
     display:inline-block; padding:0.12rem 0.5rem; border-radius:4px;
     font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;
@@ -310,7 +312,8 @@ OCP_TEMPLATE = r'''<!DOCTYPE html>
             </div>
             <div class="r-actions">
                 <a href="/download/{{ r.id }}" class="btn-dl">&#11015; Download</a>
-                <button onclick="printReport('{{ r.id }}')" class="btn-pr">&#128424; Print</button>
+                <a href="/view/{{ r.id }}" target="_blank" class="btn-pr">&#128065; View</a>
+                <button onclick="deleteReport('{{ r.id }}', '{{ r.name }}')" class="btn-del">&#128465; Delete</button>
             </div>
         </div>
         {% endfor %}
@@ -328,7 +331,11 @@ document.getElementById('uploadForm').addEventListener('submit', function() {
     var btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = '\u23F3 Generating report...';
 });
-function printReport(id) { var w = window.open('/view/' + id, '_blank'); w.addEventListener('load', function() { setTimeout(function() { w.print(); }, 1500); }); }
+function deleteReport(id, name) {
+    if (confirm('Delete report "' + name + '"?')) {
+        fetch('/delete/' + id, { method: 'POST' }).then(function() { location.reload(); });
+    }
+}
 </script>
 </body></html>
 '''
@@ -407,7 +414,8 @@ MIGRATION_TEMPLATE = r'''<!DOCTYPE html>
             </div>
             <div class="r-actions">
                 <a href="/download/{{ r.id }}" class="btn-dl">&#11015; Download</a>
-                <button onclick="printReport('{{ r.id }}')" class="btn-pr">&#128424; Print</button>
+                <a href="/view/{{ r.id }}" target="_blank" class="btn-pr">&#128065; View</a>
+                <button onclick="deleteReport('{{ r.id }}', '{{ r.name }}')" class="btn-del">&#128465; Delete</button>
             </div>
         </div>
         {% endfor %}
@@ -425,7 +433,11 @@ document.getElementById('uploadForm').addEventListener('submit', function() {
     var btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = '\u23F3 Generating dashboard...';
 });
-function printReport(id) { var w = window.open('/view/' + id, '_blank'); w.addEventListener('load', function() { setTimeout(function() { w.print(); }, 1500); }); }
+function deleteReport(id, name) {
+    if (confirm('Delete report "' + name + '"?')) {
+        fetch('/delete/' + id, { method: 'POST' }).then(function() { location.reload(); });
+    }
+}
 </script>
 </body></html>
 '''
@@ -473,6 +485,17 @@ def download(report_id):
         return redirect(url_for('index'))
     return send_file(html_path, mimetype='text/html',
                      as_attachment=True, download_name=meta['filename'])
+
+
+@app.route('/delete/<report_id>', methods=['POST'])
+def delete_report(report_id):
+    html_path = os.path.join(REPORTS_DIR, f'{report_id}.html')
+    json_path = os.path.join(REPORTS_DIR, f'{report_id}.json')
+    if os.path.exists(html_path):
+        os.unlink(html_path)
+    if os.path.exists(json_path):
+        os.unlink(json_path)
+    return '', 204
 
 
 # ─────────────────────────────────────────────
