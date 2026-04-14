@@ -32,10 +32,10 @@ def generate_summary_cards(host_data):
                 <div class="stat-card">
                     <div class="stat-label">Total Hosts</div>
                     <div class="stat-value">{stats.get('total_hosts', 0)}</div>
-                    <div class="stat-detail">{stats.get('hosts_up', 0)} Up, {stats.get('hosts_down', 0)} Down</div>
+                    <div class="stat-detail">{stats.get('hosts_up', 0)} Up, {stats.get('hosts_down', 0)} Down, {stats.get('hosts_maintenance', 0)} Maintenance</div>
                 </div>
                 <div class="stat-card blue">
-                    <div class="stat-label">Total vCores</div>
+                    <div class="stat-label">Total vCPUs</div>
                     <div class="stat-value">{stats.get('total_vcores', 0):,}</div>
                     <div class="stat-detail">{stats.get('total_allocated_vcpus', 0):,} Allocated</div>
                 </div>
@@ -129,8 +129,8 @@ def generate_hosts_table(host_data):
                                 <th>Host Name</th>
                                 <th>Cluster</th>
                                 <th>CPU Model</th>
-                                <th class="text-center">Sockets × vCores</th>
-                                <th class="text-center">Total vCores</th>
+                                <th class="text-center">Sockets × vCPUs</th>
+                                <th class="text-center">Total vCPUs</th>
                                 <th class="text-right">Memory (GB)</th>
                                 <th class="text-center">Running VMs</th>
                                 <th class="text-center">Allocated vCPUs</th>
