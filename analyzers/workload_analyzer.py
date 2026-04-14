@@ -15,15 +15,23 @@ from collections import defaultdict
 
 SYSTEM_NAMESPACES = {
     'kube-system', 'kube-public', 'kube-node-lease',
-    'calico-system', 'tigera-operator', 'openshift-',
+    'calico-system', 'tigera-operator',
+    'kubernetes-dashboard', 'ingress-nginx', 'cert-manager',
+    'monitoring', 'logging', 'istio-system', 'metallb-system',
+    'local-path-storage', 'rook-ceph', 'velero',
 }
+
+SYSTEM_PREFIXES = (
+    'openshift-', 'kube-', 'calico-', 'tigera-',
+    'istio-', 'knative-', 'tekton-', 'argocd-',
+)
 
 
 def _is_system_namespace(ns):
     """Check if namespace is a system/infrastructure namespace."""
     if ns in SYSTEM_NAMESPACES:
         return True
-    for prefix in ('openshift-', 'kube-', 'calico-', 'tigera-'):
+    for prefix in SYSTEM_PREFIXES:
         if ns.startswith(prefix):
             return True
     return False

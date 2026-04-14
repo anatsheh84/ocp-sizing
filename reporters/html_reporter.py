@@ -22,7 +22,7 @@ from analyzers.cluster_analyzer import ClusterAnalyzer
 
 
 def _generate_workload_inventory_tab(workloads):
-    """Generate the Workload Inventory tab HTML."""
+    """Generate the Workload Inventory tab HTML with filters and dynamic cards."""
     if not workloads or not workloads.get('has_workload_data'):
         return '''
             <div class="section-header">
@@ -30,136 +30,131 @@ def _generate_workload_inventory_tab(workloads):
                 <p class="section-subtitle">No pod data available</p>
             </div>'''
     
+    import json as _json
     stats = workloads['stats']
     wl_list = workloads['workload_list']
     ns_list = workloads['namespace_list']
     
-    # Stat cards
+    wl_json = _json.dumps([{
+        'namespace': w['namespace'], 'name': w['name'],
+        'replicas': w['replicas'], 'node_count': w['node_count'],
+        'nodes': [n.split('.')[0] for n in w['nodes'][:4]] + (['...'] if len(w['nodes']) > 4 else []),
+        'is_system': w['is_system'],
+        'has_cpu_requests': w['has_cpu_requests'], 'has_mem_requests': w['has_mem_requests'],
+        'total_cpu_requests_mcpu': w['total_cpu_requests_mcpu'],
+        'total_mem_requests_mb': w['total_mem_requests_mb'],
+    } for w in wl_list])
+    ns_json = _json.dumps(ns_list)
+    
+    ns_options = '<option value="all">All Namespaces</option>'
+    for ns in ns_list:
+        ns_options += f'<option value="{ns["namespace"]}">{ns["namespace"]}</option>'
+
     html = f'''
             <div class="section-header">
                 <h2 class="section-title">Workload Inventory</h2>
                 <p class="section-subtitle">Unique workloads, replica analysis, and resource request coverage</p>
             </div>
-            
-            <div class="stat-cards-grid">
-                <div class="stat-card-mini">
-                    <div class="stat-mini-value">{stats['total_pods']}</div>
-                    <div class="stat-mini-label">Total Pods</div>
-                    <div class="stat-mini-detail">{stats['app_pods']} app · {stats['system_pods']} system</div>
+            <div class="filter-bar">
+                <span class="filter-label">Filter:</span>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterWorkloads(this, \'all\')">All <span class="filter-count">{stats['total_workloads']}</span></button>
+                    <button class="filter-btn worker" onclick="filterWorkloads(this, \'app\')">App <span class="filter-count">{stats['app_workloads']}</span></button>
+                    <button class="filter-btn control-plane" onclick="filterWorkloads(this, \'system\')">System <span class="filter-count">{stats['system_workloads']}</span></button>
                 </div>
-                <div class="stat-card-mini">
-                    <div class="stat-mini-value">{stats['total_workloads']}</div>
-                    <div class="stat-mini-label">Unique Workloads</div>
-                    <div class="stat-mini-detail">{stats['app_workloads']} app · {stats['system_workloads']} system</div>
-                </div>
-                <div class="stat-card-mini">
-                    <div class="stat-mini-value">{stats['multi_replica']}</div>
-                    <div class="stat-mini-label">Multi-Replica</div>
-                    <div class="stat-mini-detail">{stats['single_replica']} single-replica</div>
-                </div>
-                <div class="stat-card-mini">
-                    <div class="stat-mini-value">{stats['namespaces']}</div>
-                    <div class="stat-mini-label">Namespaces</div>
-                    <div class="stat-mini-detail">Across all nodes</div>
-                </div>
-                <div class="stat-card-mini {'warn-card' if stats['app_cpu_req_coverage_pct'] < 50 else ''}">
-                    <div class="stat-mini-value">{stats['app_cpu_req_coverage_pct']}%</div>
-                    <div class="stat-mini-label">App CPU Requests Set</div>
-                    <div class="stat-mini-detail">{stats['cpu_req_coverage_pct']}% overall</div>
-                </div>
-                <div class="stat-card-mini {'warn-card' if stats['app_mem_req_coverage_pct'] < 50 else ''}">
-                    <div class="stat-mini-value">{stats['app_mem_req_coverage_pct']}%</div>
-                    <div class="stat-mini-label">App Mem Requests Set</div>
-                    <div class="stat-mini-detail">{stats['mem_req_coverage_pct']}% overall</div>
-                </div>
-            </div>'''
+                <select id="wl-ns-filter" onchange="filterWorkloads(null, null)" style="margin-left:auto; padding:6px 10px; border-radius:6px; border:1px solid var(--rh-gray-600); background:var(--rh-gray-800); color:var(--rh-white); font-size:0.82rem;">
+                    {ns_options}
+                </select>
+            </div>
+            <div class="stat-cards-grid" id="wl-stat-cards">
+                <div class="stat-card-mini"><div class="stat-mini-value" id="wl-card-pods">{stats['total_pods']}</div><div class="stat-mini-label">Total Pods</div><div class="stat-mini-detail" id="wl-card-pods-detail">{stats['app_pods']} app &middot; {stats['system_pods']} system</div></div>
+                <div class="stat-card-mini"><div class="stat-mini-value" id="wl-card-workloads">{stats['total_workloads']}</div><div class="stat-mini-label">Unique Workloads</div><div class="stat-mini-detail" id="wl-card-wl-detail">{stats['app_workloads']} app &middot; {stats['system_workloads']} system</div></div>
+                <div class="stat-card-mini"><div class="stat-mini-value" id="wl-card-multi">{stats['multi_replica']}</div><div class="stat-mini-label">Multi-Replica</div><div class="stat-mini-detail" id="wl-card-single">{stats['single_replica']} single-replica</div></div>
+                <div class="stat-card-mini"><div class="stat-mini-value" id="wl-card-ns">{stats['namespaces']}</div><div class="stat-mini-label">Namespaces</div><div class="stat-mini-detail">Across all nodes</div></div>
+                <div class="stat-card-mini" id="wl-card-cpu-wrap"><div class="stat-mini-value" id="wl-card-cpu">{stats['app_cpu_req_coverage_pct']}%</div><div class="stat-mini-label">CPU Requests Set</div><div class="stat-mini-detail" id="wl-card-cpu-detail">{stats['cpu_req_coverage_pct']}% overall</div></div>
+                <div class="stat-card-mini" id="wl-card-mem-wrap"><div class="stat-mini-value" id="wl-card-mem">{stats['app_mem_req_coverage_pct']}%</div><div class="stat-mini-label">Mem Requests Set</div><div class="stat-mini-detail" id="wl-card-mem-detail">{stats['mem_req_coverage_pct']}% overall</div></div>
+            </div>
+            <div class="table-container" style="margin-top:1.5rem;"><div class="table-header"><h3 class="table-title">Workloads (<span id="wl-table-count">{len(wl_list)}</span> unique)</h3></div>
+                <div class="table-scroll"><table><thead><tr><th>Namespace</th><th>Workload</th><th>Type</th><th style="text-align:center">Replicas</th><th>Spread</th><th>CPU Requests (total)</th><th>Mem Requests (total)</th><th>Nodes</th></tr></thead><tbody id="wl-table-body"></tbody></table></div></div>
+            <div class="table-container" style="margin-top:1.5rem;"><div class="table-header"><h3 class="table-title">Namespace Summary (<span id="wl-ns-count">{len(ns_list)}</span>)</h3></div>
+                <div class="table-scroll"><table><thead><tr><th>Namespace</th><th>Type</th><th style="text-align:center">Pods</th><th style="text-align:center">Unique Workloads</th></tr></thead><tbody id="wl-ns-body"></tbody></table></div></div>
+'''
 
-    # Workload table
-    rows = ''
-    for w in wl_list:
-        ns_badge = 'role-badge role-control-plane' if w['is_system'] else 'role-badge role-worker'
-        type_label = 'System' if w['is_system'] else 'App'
-        cpu_class = '' if w['has_cpu_requests'] else 'text-warning'
-        mem_class = '' if w['has_mem_requests'] else 'text-warning'
-        cpu_display = f"{round(w['total_cpu_requests_mcpu']/1000, 2)} cores" if w['total_cpu_requests_mcpu'] > 0 else '⚠ Not set'
-        mem_display = f"{round(w['total_mem_requests_mb']/1024, 1)} GB" if w['total_mem_requests_mb'] > 0 else '⚠ Not set'
-        spread = f"{w['node_count']} nodes" if w['node_count'] > 1 else '1 node'
-        nodes_str = ', '.join(n.split('.')[0] for n in w['nodes'][:4])
-        if len(w['nodes']) > 4:
-            nodes_str += f' +{len(w["nodes"])-4} more'
-        
-        rows += f'''
-                            <tr>
-                                <td>{w['namespace']}</td>
-                                <td><strong>{w['name']}</strong></td>
-                                <td><span class="{ns_badge}">{type_label}</span></td>
-                                <td style="text-align:center"><strong>{w['replicas']}</strong></td>
-                                <td>{spread}</td>
-                                <td class="{cpu_class}">{cpu_display}</td>
-                                <td class="{mem_class}">{mem_display}</td>
-                                <td style="font-size:0.78em; color:#888">{nodes_str}</td>
-                            </tr>'''
-
-    html += f'''
-            <div class="table-container" style="margin-top: 1.5rem;">
-                <div class="table-header">
-                    <h3 class="table-title">Workloads ({len(wl_list)} unique)</h3>
-                </div>
-                <div class="table-scroll">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Namespace</th>
-                                <th>Workload</th>
-                                <th>Type</th>
-                                <th style="text-align:center">Replicas</th>
-                                <th>Spread</th>
-                                <th>CPU Requests (total)</th>
-                                <th>Mem Requests (total)</th>
-                                <th>Nodes</th>
-                            </tr>
-                        </thead>
-                        <tbody>{rows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>'''
-
-    # Namespace summary table
-    ns_rows = ''
-    for ns in ns_list:
-        ns_badge = 'role-badge role-control-plane' if ns['is_system'] else 'role-badge role-worker'
-        type_label = 'System' if ns['is_system'] else 'App'
-        ns_rows += f'''
-                            <tr>
-                                <td><strong>{ns['namespace']}</strong></td>
-                                <td><span class="{ns_badge}">{type_label}</span></td>
-                                <td style="text-align:center">{ns['pod_count']}</td>
-                                <td style="text-align:center">{ns['workload_count']}</td>
-                            </tr>'''
-
-    html += f'''
-            <div class="table-container" style="margin-top: 1.5rem;">
-                <div class="table-header">
-                    <h3 class="table-title">Namespace Summary ({len(ns_list)} namespaces)</h3>
-                </div>
-                <div class="table-scroll">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Namespace</th>
-                                <th>Type</th>
-                                <th style="text-align:center">Pods</th>
-                                <th style="text-align:center">Unique Workloads</th>
-                            </tr>
-                        </thead>
-                        <tbody>{ns_rows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>'''
+    html += '''<script>
+var _wlData = ''' + wl_json + ''';
+var _nsData = ''' + ns_json + ''';
+var _wlTypeFilter = 'all';
+function filterWorkloads(btn, typeF) {
+    if (typeF !== null) _wlTypeFilter = typeF;
+    var tf = _wlTypeFilter;
+    var nsF = document.getElementById('wl-ns-filter').value;
+    if (btn) {
+        document.querySelectorAll('#workload-inventory .filter-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+    }
+    var f = _wlData.filter(function(w) {
+        if (tf === 'app' && w.is_system) return false;
+        if (tf === 'system' && !w.is_system) return false;
+        if (nsF !== 'all' && w.namespace !== nsF) return false;
+        return true;
+    });
+    var fNs = _nsData.filter(function(ns) {
+        if (tf === 'app' && ns.is_system) return false;
+        if (tf === 'system' && !ns.is_system) return false;
+        if (nsF !== 'all' && ns.namespace !== nsF) return false;
+        return true;
+    });
+    var tp = f.reduce(function(s,w){return s+w.replicas;},0);
+    var aw = f.filter(function(w){return !w.is_system;});
+    var sw = f.filter(function(w){return w.is_system;});
+    var ap = aw.reduce(function(s,w){return s+w.replicas;},0);
+    var sp = sw.reduce(function(s,w){return s+w.replicas;},0);
+    var mr = f.filter(function(w){return w.replicas>1;}).length;
+    var sr = f.filter(function(w){return w.replicas===1;}).length;
+    var wc = f.filter(function(w){return w.has_cpu_requests;}).length;
+    var wm = f.filter(function(w){return w.has_mem_requests;}).length;
+    var cp = f.length>0 ? Math.round(wc/f.length*100) : 0;
+    var mp = f.length>0 ? Math.round(wm/f.length*100) : 0;
+    document.getElementById('wl-card-pods').textContent=tp;
+    document.getElementById('wl-card-pods-detail').textContent=ap+' app \\u00b7 '+sp+' system';
+    document.getElementById('wl-card-workloads').textContent=f.length;
+    document.getElementById('wl-card-wl-detail').textContent=aw.length+' app \\u00b7 '+sw.length+' system';
+    document.getElementById('wl-card-multi').textContent=mr;
+    document.getElementById('wl-card-single').textContent=sr+' single-replica';
+    document.getElementById('wl-card-ns').textContent=fNs.length;
+    document.getElementById('wl-card-cpu').textContent=cp+'%';
+    document.getElementById('wl-card-mem').textContent=mp+'%';
+    document.getElementById('wl-card-cpu-wrap').className='stat-card-mini'+(cp<50?' warn-card':'');
+    document.getElementById('wl-card-mem-wrap').className='stat-card-mini'+(mp<50?' warn-card':'');
+    var tb=document.getElementById('wl-table-body'); tb.innerHTML='';
+    f.forEach(function(w){
+        var bg=w.is_system?'role-badge role-control-plane':'role-badge role-worker';
+        var tl=w.is_system?'System':'App';
+        var cd=w.total_cpu_requests_mcpu>0?(w.total_cpu_requests_mcpu/1000).toFixed(2)+' cores':'\\u26a0 Not set';
+        var md=w.total_mem_requests_mb>0?(w.total_mem_requests_mb/1024).toFixed(1)+' GB':'\\u26a0 Not set';
+        var cc=w.has_cpu_requests?'':' class="text-warning"';
+        var mc=w.has_mem_requests?'':' class="text-warning"';
+        var sp2=w.node_count>1?w.node_count+' nodes':'1 node';
+        var tr=document.createElement('tr');
+        tr.innerHTML='<td>'+w.namespace+'</td><td><strong>'+w.name+'</strong></td><td><span class="'+bg+'">'+tl+'</span></td><td style="text-align:center"><strong>'+w.replicas+'</strong></td><td>'+sp2+'</td><td'+cc+'>'+cd+'</td><td'+mc+'>'+md+'</td><td style="font-size:0.78em;color:#888">'+w.nodes.join(', ')+'</td>';
+        tb.appendChild(tr);
+    });
+    document.getElementById('wl-table-count').textContent=f.length;
+    var nb=document.getElementById('wl-ns-body'); nb.innerHTML='';
+    fNs.forEach(function(ns){
+        var bg=ns.is_system?'role-badge role-control-plane':'role-badge role-worker';
+        var tl=ns.is_system?'System':'App';
+        var tr=document.createElement('tr');
+        tr.innerHTML='<td><strong>'+ns.namespace+'</strong></td><td><span class="'+bg+'">'+tl+'</span></td><td style="text-align:center">'+ns.pod_count+'</td><td style="text-align:center">'+ns.workload_count+'</td>';
+        nb.appendChild(tr);
+    });
+    document.getElementById('wl-ns-count').textContent=fNs.length;
+}
+document.addEventListener('DOMContentLoaded',function(){filterWorkloads(document.querySelector('#workload-inventory .filter-btn'),'all');});
+</script>'''
     
     return html
+
 
 
 def generate_html_report(nodes: List[NodeData], summary: ClusterSummary, 
