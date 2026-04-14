@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import our modular components
-from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
+from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs, parse_top_pods
 from analyzers import ClusterAnalyzer, RecommendationEngine, analyze_workloads
 from reporters import generate_html_report
 
@@ -32,7 +32,7 @@ def read_file(filepath: str) -> str:
         sys.exit(1)
 
 
-def prepare_report_data(nodes, summary, recommendations, pvs):
+def prepare_report_data(nodes, summary, recommendations, pvs, pods_top_data=None):
     """Prepare data for HTML report generation."""
     # Convert nodes to JSON format
     nodes_json = []
@@ -72,7 +72,7 @@ def prepare_report_data(nodes, summary, recommendations, pvs):
         'summary': summary,
         'recommendations': recommendations,
         'pvs': pvs,
-        'workloads': analyze_workloads(nodes),
+        'workloads': analyze_workloads(nodes, pods_top_data),
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
     }
 

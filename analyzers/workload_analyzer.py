@@ -54,19 +54,25 @@ def _infer_base_name(pod_name):
     return pod_name
 
 
-def analyze_workloads(nodes):
+def analyze_workloads(nodes, pods_top_data=None):
     """
     Analyze workload data from parsed nodes.
 
     Args:
         nodes: List of NodeData objects (with pods already parsed)
+        pods_top_data: Optional dict from parse_top_pods — maps
+                       (namespace, pod_name) to (cpu_millicores, memory_mib)
 
     Returns:
         Dictionary with workload analysis data
     """
     all_pods = []
+    has_actual = pods_top_data is not None and len(pods_top_data) > 0
+    
     for node in nodes:
         for pod in node.pods:
+            # Look up actual usage from pods-top if available
+            actual = pods_top_data.get((pod.namespace, pod.name)) if pods_top_data else None
             all_pods.append({
                 'node': node.name,
                 'namespace': pod.namespace,
@@ -77,6 +83,9 @@ def analyze_workloads(nodes):
                 'memory_requests': pod.memory_requests,
                 'memory_limits': pod.memory_limits,
                 'is_system': _is_system_namespace(pod.namespace),
+                'actual_cpu': actual[0] if actual else 0.0,
+                'actual_mem': actual[1] if actual else 0.0,
+                'has_actual': actual is not None,
             })
 
     if not all_pods:
@@ -95,6 +104,9 @@ def analyze_workloads(nodes):
         has_mem_req = any(p['memory_requests'] > 0 for p in pod_list)
         total_cpu_req = sum(p['cpu_requests'] for p in pod_list)
         total_mem_req = sum(p['memory_requests'] for p in pod_list)
+        total_actual_cpu = sum(p['actual_cpu'] for p in pod_list)
+        total_actual_mem = sum(p['actual_mem'] for p in pod_list)
+        has_actual_data = any(p['has_actual'] for p in pod_list)
         is_system = pod_list[0]['is_system']
 
         workload_list.append({
@@ -108,6 +120,9 @@ def analyze_workloads(nodes):
             'has_mem_requests': has_mem_req,
             'total_cpu_requests_mcpu': round(total_cpu_req),
             'total_mem_requests_mb': round(total_mem_req),
+            'total_actual_cpu_mcpu': round(total_actual_cpu),
+            'total_actual_mem_mb': round(total_actual_mem),
+            'has_actual': has_actual_data,
         })
 
     # Stats
@@ -141,8 +156,18 @@ def analyze_workloads(nodes):
             'is_system': s['is_system'],
         })
 
+    # Actual usage stats (from pods-top)
+    total_actual_cpu = sum(p['actual_cpu'] for p in all_pods)
+    total_actual_mem = sum(p['actual_mem'] for p in all_pods)
+    app_actual_cpu = sum(p['actual_cpu'] for p in app_pods)
+    app_actual_mem = sum(p['actual_mem'] for p in app_pods)
+    sys_actual_cpu = sum(p['actual_cpu'] for p in sys_pods)
+    sys_actual_mem = sum(p['actual_mem'] for p in sys_pods)
+    matched_pods = sum(1 for p in all_pods if p['has_actual'])
+
     return {
         'has_workload_data': True,
+        'has_actual_usage': has_actual,
         'stats': {
             'total_pods': total_pods,
             'total_workloads': len(workload_list),
@@ -157,6 +182,13 @@ def analyze_workloads(nodes):
             'mem_req_coverage_pct': round(pods_with_mem_req / total_pods * 100) if total_pods else 0,
             'app_cpu_req_coverage_pct': round(app_with_cpu_req / len(app_pods) * 100) if app_pods else 0,
             'app_mem_req_coverage_pct': round(app_with_mem_req / len(app_pods) * 100) if app_pods else 0,
+            'total_actual_cpu_mcpu': round(total_actual_cpu),
+            'total_actual_mem_mb': round(total_actual_mem),
+            'app_actual_cpu_mcpu': round(app_actual_cpu),
+            'app_actual_mem_mb': round(app_actual_mem),
+            'sys_actual_cpu_mcpu': round(sys_actual_cpu),
+            'sys_actual_mem_mb': round(sys_actual_mem),
+            'matched_pods': matched_pods,
         },
         'workload_list': workload_list,
         'namespace_list': namespace_list,

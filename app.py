@@ -14,7 +14,7 @@ from flask import (Flask, request, send_file, render_template_string,
                    flash, redirect, url_for)
 
 # OCP Sizing imports
-from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
+from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs, parse_top_pods
 from analyzers import ClusterAnalyzer, RecommendationEngine, analyze_workloads
 from reporters import generate_html_report
 
@@ -277,6 +277,11 @@ OCP_TEMPLATE = r'''<!DOCTYPE html>
                 <input type="file" name="pvs_file" accept=".txt,.log,.out">
                 <div class="hint">Run: kubectl get pv -o wide &gt; pvs.txt</div>
             </div>
+            <div class="file-group">
+                <label>kubectl top pods -A <span style="color:var(--rh-gray-600)">(optional)</span></label>
+                <input type="file" name="pods_top_file" accept=".txt,.log,.out">
+                <div class="hint">Run: kubectl top pods -A &gt; pods_top.txt &middot; Enables per-workload actual usage</div>
+            </div>
         </div>
         <div class="card">
             <h2>&#9881; Report Options</h2>
@@ -531,6 +536,12 @@ def generate_ocp():
             pv_content = pvs_file.read().decode('utf-8', errors='replace')
             pvs = parse_pvs(pv_content)
 
+        pods_top_data = None
+        pods_top_file = request.files.get('pods_top_file')
+        if pods_top_file and pods_top_file.filename != '':
+            pods_top_content = pods_top_file.read().decode('utf-8', errors='replace')
+            pods_top_data = parse_top_pods(pods_top_content)
+
         nodes = parse_describe_nodes(describe_content)
         if not nodes:
             flash('No nodes could be parsed. Check the file format.', 'error')
@@ -545,7 +556,7 @@ def generate_ocp():
         recommendations = rec_engine.generate_recommendations()
 
         include_recs = request.form.get('include_recommendations') == '1'
-        workloads = analyze_workloads(nodes)
+        workloads = analyze_workloads(nodes, pods_top_data)
         html = generate_html_report(nodes, summary, recommendations, pvs,
                                     include_recommendations=include_recs,
                                     workloads=workloads)
