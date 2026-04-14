@@ -21,6 +21,7 @@ from models import (
 )
 from .cluster_analyzer import ClusterAnalyzer
 from .recommendation_engine import RecommendationEngine
+from .workload_analyzer import analyze_workloads
 
 __all__ = [
     'ResourceSpec',
@@ -31,5 +32,6 @@ __all__ = [
     'PersistentVolume',
     'ClusterSummary',
     'ClusterAnalyzer',
-    'RecommendationEngine'
+    'RecommendationEngine',
+    'analyze_workloads'
 ]

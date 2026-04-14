@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Import our modular components
 from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
-from analyzers import ClusterAnalyzer, RecommendationEngine
+from analyzers import ClusterAnalyzer, RecommendationEngine, analyze_workloads
 from reporters import generate_html_report
 
 
@@ -72,6 +72,7 @@ def prepare_report_data(nodes, summary, recommendations, pvs):
         'summary': summary,
         'recommendations': recommendations,
         'pvs': pvs,
+        'workloads': analyze_workloads(nodes),
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M")
     }
 

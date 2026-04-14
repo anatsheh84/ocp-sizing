@@ -21,9 +21,151 @@ from models import NodeData, ClusterSummary, PersistentVolume
 from analyzers.cluster_analyzer import ClusterAnalyzer
 
 
+def _generate_workload_inventory_tab(workloads):
+    """Generate the Workload Inventory tab HTML."""
+    if not workloads or not workloads.get('has_workload_data'):
+        return '''
+            <div class="section-header">
+                <h2 class="section-title">Workload Inventory</h2>
+                <p class="section-subtitle">No pod data available</p>
+            </div>'''
+    
+    stats = workloads['stats']
+    wl_list = workloads['workload_list']
+    ns_list = workloads['namespace_list']
+    
+    # Stat cards
+    html = f'''
+            <div class="section-header">
+                <h2 class="section-title">Workload Inventory</h2>
+                <p class="section-subtitle">Unique workloads, replica analysis, and resource request coverage</p>
+            </div>
+            
+            <div class="stat-cards-grid">
+                <div class="stat-card-mini">
+                    <div class="stat-mini-value">{stats['total_pods']}</div>
+                    <div class="stat-mini-label">Total Pods</div>
+                    <div class="stat-mini-detail">{stats['app_pods']} app · {stats['system_pods']} system</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="stat-mini-value">{stats['total_workloads']}</div>
+                    <div class="stat-mini-label">Unique Workloads</div>
+                    <div class="stat-mini-detail">{stats['app_workloads']} app · {stats['system_workloads']} system</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="stat-mini-value">{stats['multi_replica']}</div>
+                    <div class="stat-mini-label">Multi-Replica</div>
+                    <div class="stat-mini-detail">{stats['single_replica']} single-replica</div>
+                </div>
+                <div class="stat-card-mini">
+                    <div class="stat-mini-value">{stats['namespaces']}</div>
+                    <div class="stat-mini-label">Namespaces</div>
+                    <div class="stat-mini-detail">Across all nodes</div>
+                </div>
+                <div class="stat-card-mini {'warn-card' if stats['app_cpu_req_coverage_pct'] < 50 else ''}">
+                    <div class="stat-mini-value">{stats['app_cpu_req_coverage_pct']}%</div>
+                    <div class="stat-mini-label">App CPU Requests Set</div>
+                    <div class="stat-mini-detail">{stats['cpu_req_coverage_pct']}% overall</div>
+                </div>
+                <div class="stat-card-mini {'warn-card' if stats['app_mem_req_coverage_pct'] < 50 else ''}">
+                    <div class="stat-mini-value">{stats['app_mem_req_coverage_pct']}%</div>
+                    <div class="stat-mini-label">App Mem Requests Set</div>
+                    <div class="stat-mini-detail">{stats['mem_req_coverage_pct']}% overall</div>
+                </div>
+            </div>'''
+
+    # Workload table
+    rows = ''
+    for w in wl_list:
+        ns_badge = 'role-badge role-control-plane' if w['is_system'] else 'role-badge role-worker'
+        type_label = 'System' if w['is_system'] else 'App'
+        cpu_class = '' if w['has_cpu_requests'] else 'text-warning'
+        mem_class = '' if w['has_mem_requests'] else 'text-warning'
+        cpu_display = f"{round(w['total_cpu_requests_mcpu']/1000, 2)} cores" if w['total_cpu_requests_mcpu'] > 0 else '⚠ Not set'
+        mem_display = f"{round(w['total_mem_requests_mb']/1024, 1)} GB" if w['total_mem_requests_mb'] > 0 else '⚠ Not set'
+        spread = f"{w['node_count']} nodes" if w['node_count'] > 1 else '1 node'
+        nodes_str = ', '.join(n.split('.')[0] for n in w['nodes'][:4])
+        if len(w['nodes']) > 4:
+            nodes_str += f' +{len(w["nodes"])-4} more'
+        
+        rows += f'''
+                            <tr>
+                                <td>{w['namespace']}</td>
+                                <td><strong>{w['name']}</strong></td>
+                                <td><span class="{ns_badge}">{type_label}</span></td>
+                                <td style="text-align:center"><strong>{w['replicas']}</strong></td>
+                                <td>{spread}</td>
+                                <td class="{cpu_class}">{cpu_display}</td>
+                                <td class="{mem_class}">{mem_display}</td>
+                                <td style="font-size:0.78em; color:#888">{nodes_str}</td>
+                            </tr>'''
+
+    html += f'''
+            <div class="table-container" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3 class="table-title">Workloads ({len(wl_list)} unique)</h3>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Namespace</th>
+                                <th>Workload</th>
+                                <th>Type</th>
+                                <th style="text-align:center">Replicas</th>
+                                <th>Spread</th>
+                                <th>CPU Requests (total)</th>
+                                <th>Mem Requests (total)</th>
+                                <th>Nodes</th>
+                            </tr>
+                        </thead>
+                        <tbody>{rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>'''
+
+    # Namespace summary table
+    ns_rows = ''
+    for ns in ns_list:
+        ns_badge = 'role-badge role-control-plane' if ns['is_system'] else 'role-badge role-worker'
+        type_label = 'System' if ns['is_system'] else 'App'
+        ns_rows += f'''
+                            <tr>
+                                <td><strong>{ns['namespace']}</strong></td>
+                                <td><span class="{ns_badge}">{type_label}</span></td>
+                                <td style="text-align:center">{ns['pod_count']}</td>
+                                <td style="text-align:center">{ns['workload_count']}</td>
+                            </tr>'''
+
+    html += f'''
+            <div class="table-container" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3 class="table-title">Namespace Summary ({len(ns_list)} namespaces)</h3>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Namespace</th>
+                                <th>Type</th>
+                                <th style="text-align:center">Pods</th>
+                                <th style="text-align:center">Unique Workloads</th>
+                            </tr>
+                        </thead>
+                        <tbody>{ns_rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>'''
+    
+    return html
+
+
 def generate_html_report(nodes: List[NodeData], summary: ClusterSummary, 
                         recommendations: Dict, pvs: List[PersistentVolume],
-                        include_recommendations: bool = True) -> str:
+                        include_recommendations: bool = True,
+                        workloads: Dict = None) -> str:
     """Generate interactive HTML dashboard"""
     
     # Prepare data for charts
@@ -109,6 +251,9 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                 'memory': role_nodes[0]['memory'],
                 'nodes': role_nodes
             }
+    
+    # Pre-compute workload inventory tab HTML (can't call functions inside f-string)
+    workload_inventory_html = _generate_workload_inventory_tab(workloads or {})
     
     html = f'''<!DOCTYPE html>
 <html lang="en">
@@ -763,6 +908,43 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
         .text-warning {{ color: var(--rh-orange) !important; }}
         .text-info {{ color: var(--rh-blue-light) !important; }}
         
+        /* Workload Inventory mini cards */
+        .stat-cards-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }}
+        .stat-card-mini {{
+            background: var(--rh-gray-800);
+            border: 1px solid var(--rh-gray-700);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+        }}
+        .stat-card-mini.warn-card {{
+            border-color: var(--rh-orange);
+            background: rgba(236, 122, 8, 0.08);
+        }}
+        .stat-mini-value {{
+            font-family: 'Red Hat Display', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--rh-white);
+        }}
+        .warn-card .stat-mini-value {{ color: var(--rh-orange); }}
+        .stat-mini-label {{
+            font-size: 0.78rem;
+            color: var(--rh-gray-300);
+            margin-top: 0.15rem;
+            font-weight: 500;
+        }}
+        .stat-mini-detail {{
+            font-size: 0.7rem;
+            color: var(--rh-gray-500);
+            margin-top: 0.25rem;
+        }}
+        
         /* Card advice styles */
         .card-advice {{
             font-size: 0.8rem;
@@ -1255,6 +1437,7 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             <div class="nav-tab" data-tab="nodes">Node Inventory</div>
             <div class="nav-tab" data-tab="efficiency">Efficiency Analysis</div>
             <div class="nav-tab" data-tab="workloads">Workload Distribution</div>
+            <div class="nav-tab" data-tab="workload-inventory">Workload Inventory</div>
             {'<div class="nav-tab" data-tab="recommendations">OCP Recommendations</div>' if include_recommendations else ''}
             {'<div class="nav-tab" data-tab="checklist">Migration Checklist</div>' if include_recommendations else ''}
             <div class="nav-tab" data-tab="storage">Persistent Volumes</div>
@@ -1756,6 +1939,11 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     </table>
                 </div>
             </div>
+        </div>
+        
+        <!-- Workload Inventory Tab -->
+        <div class="tab-content" id="workload-inventory">
+{workload_inventory_html}
         </div>
         
         <!-- Recommendations Tab -->

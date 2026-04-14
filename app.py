@@ -15,7 +15,7 @@ from flask import (Flask, request, send_file, render_template_string,
 
 # OCP Sizing imports
 from parsers import parse_describe_nodes, parse_top_nodes, parse_pvs
-from analyzers import ClusterAnalyzer, RecommendationEngine
+from analyzers import ClusterAnalyzer, RecommendationEngine, analyze_workloads
 from reporters import generate_html_report
 
 # VM Migration imports
@@ -545,8 +545,10 @@ def generate_ocp():
         recommendations = rec_engine.generate_recommendations()
 
         include_recs = request.form.get('include_recommendations') == '1'
+        workloads = analyze_workloads(nodes)
         html = generate_html_report(nodes, summary, recommendations, pvs,
-                                    include_recommendations=include_recs)
+                                    include_recommendations=include_recs,
+                                    workloads=workloads)
 
         report_name = request.form.get('report_name', '').strip()
         if not report_name:
