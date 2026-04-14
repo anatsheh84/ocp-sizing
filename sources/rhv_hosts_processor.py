@@ -120,6 +120,12 @@ class RHVHostsProcessor:
         if 'cpu_model' not in df.columns:
             df['cpu_model'] = 'Unknown'
         
+        # Fix: use cpu_threads as actual vCPU capacity (total_vcores from RHV
+        # export is inflated — it's cores_per_socket * sockets which double-counts).
+        # cpu_threads = physical cores * 2 (hyperthreading) = real vCPU count.
+        if 'cpu_threads' in df.columns:
+            df['total_vcores'] = df['cpu_threads']
+        
         return df.reset_index(drop=True)
     
     def get_status_name(self, status_code: int) -> str:

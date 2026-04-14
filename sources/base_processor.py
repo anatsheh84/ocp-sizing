@@ -225,6 +225,28 @@ class BaseProcessor(ABC):
                     stats['avg_vms_per_month'] = round(monthly_counts.mean(), 1)
                     stats['peak_month'] = str(monthly_counts.idxmax())
                     stats['peak_month_count'] = int(monthly_counts.max())
+                
+                # E-E annual growth rate: total VMs / span years, as % of current base
+                span_days = (valid_dates.max() - valid_dates.min()).days
+                if span_days > 90:  # minimum 3 months
+                    span_years = span_days / 365.25
+                    total_vms = len(df)
+                    e2e_annual = total_vms / span_years
+                    stats['e2e_growth_pct'] = round((e2e_annual / total_vms) * 100, 1)
+                    stats['e2e_span_years'] = round(span_years, 1)
+                
+                # Last 12m growth rate: VMs created in trailing 12m / base before
+                from datetime import timedelta
+                cutoff_12m = valid_dates.max() - timedelta(days=365)
+                vms_last_12m = len(df[df['creation_date'] > cutoff_12m])
+                vms_before = len(df[df['creation_date'] <= cutoff_12m])
+                if span_days >= 365 and vms_before > 0:
+                    stats['last_12m_growth_pct'] = round((vms_last_12m / vms_before) * 100, 1)
+                    stats['last_12m_count'] = vms_last_12m
+                elif span_days > 90 and vms_before > 0:
+                    # Less than 12m of data — show raw period rate
+                    stats['last_period_months'] = round(span_days / 30.44)
+                    stats['last_period_growth_pct'] = round((vms_last_12m / vms_before) * 100, 1)
         
         return stats
 

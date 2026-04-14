@@ -29,6 +29,28 @@ def generate_stat_cards(stats):
     peak_month = stats.get('peak_month', 'N/A')
     peak_count = stats.get('peak_month_count', 0)
     
+    # E-E growth
+    e2e_pct = stats.get('e2e_growth_pct')
+    e2e_span = stats.get('e2e_span_years', 0)
+    e2e_display = f'{e2e_pct}%' if e2e_pct is not None else 'N/A'
+    e2e_detail = f'Over {e2e_span} years' if e2e_pct is not None else 'Insufficient data'
+    
+    # Last 12m growth
+    last_12m_pct = stats.get('last_12m_growth_pct')
+    last_12m_count = stats.get('last_12m_count', 0)
+    period_months = stats.get('last_period_months')
+    period_pct = stats.get('last_period_growth_pct')
+    
+    if last_12m_pct is not None:
+        recent_display = f'{last_12m_pct}%'
+        recent_detail = f'{last_12m_count} VMs in last 12 months'
+    elif period_months is not None:
+        recent_display = f'{period_pct}%'
+        recent_detail = f'Over last {period_months} months'
+    else:
+        recent_display = 'N/A'
+        recent_detail = 'Insufficient data'
+    
     return f'''            <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">First VM Created</div>
@@ -49,6 +71,16 @@ def generate_stat_cards(stats):
                     <div class="stat-label">Peak Month</div>
                     <div class="stat-value" style="font-size: 24px;">{peak_month}</div>
                     <div class="stat-detail">{peak_count} VMs provisioned</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-label">E-E Annual Growth</div>
+                    <div class="stat-value">{e2e_display}</div>
+                    <div class="stat-detail">{e2e_detail}</div>
+                </div>
+                <div class="stat-card teal">
+                    <div class="stat-label">Last 12m Growth</div>
+                    <div class="stat-value">{recent_display}</div>
+                    <div class="stat-detail">{recent_detail}</div>
                 </div>
             </div>
 '''

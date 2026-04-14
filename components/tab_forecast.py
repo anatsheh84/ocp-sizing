@@ -46,11 +46,28 @@ def generate_config_panel():
                     </div>
                     <div class="config-group">
                         <label>Node Specification</label>
-                        <select id="node-spec">
+                        <select id="node-spec" onchange="toggleCustomNodeSpec()">
                             <option value="small">Small: 32 cores / 64 vCPU / 512 GB RAM</option>
                             <option value="medium" selected>Medium: 64 cores / 128 vCPU / 1024 GB RAM</option>
                             <option value="large">Large: 128 cores / 256 vCPU / 2048 GB RAM</option>
+                            <option value="custom">Custom</option>
                         </select>
+                    </div>
+                    <div id="custom-node-spec-row" style="display:none; gap:15px;">
+                        <div class="config-group" style="flex:1;">
+                            <label>vCPUs per Node</label>
+                            <input type="number" id="custom-node-vcpus" value="128" min="1" max="1024">
+                        </div>
+                        <div class="config-group" style="flex:1;">
+                            <label>RAM per Node (GB)</label>
+                            <input type="number" id="custom-node-ram" value="1024" min="1" max="16384">
+                        </div>
+                        <div class="hint" style="width:100%; font-size:12px; color:#999; margin-top:-5px;">Hint: 1 physical core = 2 vCPU</div>
+                    </div>
+                    <div class="config-group">
+                        <label>Overhead Factor (%)</label>
+                        <input type="number" id="overhead-factor" value="20" min="0" max="100">
+                        <div class="hint" style="font-size:12px; color:#999; margin-top:4px;">Buffer for scheduling and burst (default 20%)</div>
                     </div>
                 </div>
                 <button class="apply-btn" onclick="applyForecast()">Apply & Recalculate</button>
@@ -95,7 +112,7 @@ def generate_assumptions_table(stats):
                             </tr>
                             <tr>
                                 <td>Overhead Factor</td>
-                                <td>1.2x (20%)</td>
+                                <td id="assumption-overhead">1.2x (20%)</td>
                                 <td>—</td>
                                 <td class="assumptions-note">Added buffer for scheduling and burst</td>
                             </tr>

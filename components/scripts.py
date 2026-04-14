@@ -841,6 +841,14 @@ function toggleCustomGrowth() {{
     customInput.disabled = scenario !== 'custom';
 }}
 
+function toggleCustomNodeSpec() {{
+    const spec = document.getElementById('node-spec').value;
+    const customRow = document.getElementById('custom-node-spec-row');
+    if (customRow) {{
+        customRow.style.display = spec === 'custom' ? 'flex' : 'none';
+    }}
+}}
+
 function applyForecast() {{
     const scenarioSelect = document.getElementById('growth-scenario');
     const customInput = document.getElementById('custom-growth');
@@ -848,7 +856,8 @@ function applyForecast() {{
     
     let growthRate = parseInt(scenarioSelect.value);
     if (scenarioSelect.value === 'custom') {{
-        growthRate = parseInt(customInput.value) || 15;
+        growthRate = parseInt(customInput.value);
+        if (isNaN(growthRate)) growthRate = 15;
     }}
     
     const nodeSpec = nodeSpecSelect.value;
@@ -891,6 +900,13 @@ function applyForecast() {{
     const assumptionGrowth = document.getElementById('assumption-growth');
     if (assumptionGrowth) assumptionGrowth.textContent = growthText;
     
+    // Update overhead assumption display
+    const overheadInput = document.getElementById('overhead-factor');
+    const overheadPct = overheadInput ? (parseInt(overheadInput.value) || 20) : 20;
+    const overheadFactor = 1 + overheadPct / 100;
+    const assumptionOverhead = document.getElementById('assumption-overhead');
+    if (assumptionOverhead) assumptionOverhead.textContent = `${{overheadFactor.toFixed(1)}}x (${{overheadPct}}%)`;
+    
     // Update forecast chart
     if (charts.forecast) {{
         charts.forecast.data.datasets[0].data = years.map(y => projections[y].vms);
@@ -900,15 +916,24 @@ function applyForecast() {{
     }}
     
     // Update infrastructure table
-    updateInfrastructureTable(projections[2028], nodeSpec, nodeSpecs);
+    // Build effective spec (handle custom)
+    let effectiveSpec;
+    if (nodeSpec === 'custom') {{
+        const customVcpus = parseInt(document.getElementById('custom-node-vcpus').value) || 128;
+        const customRam = parseInt(document.getElementById('custom-node-ram').value) || 1024;
+        effectiveSpec = {{ vcpus: customVcpus, memory: customRam }};
+    }} else {{
+        effectiveSpec = nodeSpecs[nodeSpec];
+    }}
+    updateInfrastructureTable(projections[2028], nodeSpec, effectiveSpec, overheadFactor);
 }}
 
-function updateInfrastructureTable(projection2028, nodeSpec, nodeSpecs) {{
-    const spec = nodeSpecs[nodeSpec];
+function updateInfrastructureTable(projection2028, nodeSpec, spec, overheadFactor) {{
     const specNames = {{
         small: 'Small (64 vCPU / 512 GB)',
         medium: 'Medium (128 vCPU / 1024 GB)',
-        large: 'Large (256 vCPU / 2048 GB)'
+        large: 'Large (256 vCPU / 2048 GB)',
+        custom: `Custom (${{spec.vcpus}} vCPU / ${{spec.memory}} GB)`
     }};
     
     const clusters = forecastBaseData.clusters || [];
@@ -925,9 +950,9 @@ function updateInfrastructureTable(projection2028, nodeSpec, nodeSpecs) {{
         const vcpus2028 = Math.ceil(projection2028.vcpus * ratio);
         const memory2028 = Math.ceil(projection2028.memory * ratio);
         
-        // Calculate nodes needed (with 1.2x overhead, minimum 3 for HA)
-        const vcpuNodes = Math.ceil((vcpus2028 * 1.2) / spec.vcpus);
-        const memoryNodes = Math.ceil((memory2028 * 1.2) / spec.memory);
+        // Calculate nodes needed (with overhead, minimum 3 for HA)
+        const vcpuNodes = Math.ceil((vcpus2028 * overheadFactor) / spec.vcpus);
+        const memoryNodes = Math.ceil((memory2028 * overheadFactor) / spec.memory);
         const nodes = Math.max(3, Math.max(vcpuNodes, memoryNodes));
         
         // Update row
