@@ -97,7 +97,7 @@ def _generate_workload_inventory_tab(workloads):
             <div class="table-container" style="margin-top:1.5rem;"><div class="table-header"><h3 class="table-title">Workloads (<span id="wl-table-count">{len(wl_list)}</span> unique)</h3></div>
                 <div class="table-scroll"><table><thead><tr><th>Namespace</th><th>Workload</th><th>Type</th><th style="text-align:center">Replicas</th><th>Spread</th><th>CPU Requests</th><th>Mem Requests</th>{actual_th}<th>Nodes</th></tr></thead><tbody id="wl-table-body"></tbody><tfoot id="wl-table-foot"></tfoot></table></div></div>
             <div class="table-container" style="margin-top:1.5rem;"><div class="table-header"><h3 class="table-title">Namespace Summary (<span id="wl-ns-count">{len(ns_list)}</span>)</h3></div>
-                <div class="table-scroll"><table><thead><tr><th>Namespace</th><th>Type</th><th style="text-align:center">Pods</th><th style="text-align:center">Unique Workloads</th></tr></thead><tbody id="wl-ns-body"></tbody></table></div></div>
+                <div class="table-scroll"><table><thead><tr><th>Namespace</th><th>Type</th><th style="text-align:center">Pods</th><th style="text-align:center">Unique Workloads</th></tr></thead><tbody id="wl-ns-body"></tbody><tfoot id="wl-ns-foot"></tfoot></table></div></div>
 '''
 
     html += '''<script>
@@ -207,6 +207,10 @@ function filterWorkloads(btn, typeF) {
         nsPods+=ns.pod_count; nsWl+=ns.workload_count;
     });
     document.getElementById('wl-ns-count').textContent=fNs.length;
+    var nsft=document.getElementById('wl-ns-foot'); nsft.innerHTML='';
+    var nsftr=document.createElement('tr');
+    nsftr.innerHTML='<td><strong>\\u03a3 Total (Filtered)</strong></td><td>'+fNs.length+' namespaces</td><td style="text-align:center"><strong>'+nsPods+'</strong></td><td style="text-align:center"><strong>'+nsWl+'</strong></td>';
+    nsft.appendChild(nsftr);
 }
 document.addEventListener('DOMContentLoaded',function(){filterWorkloads(document.querySelector('#workload-inventory .filter-btn'),'all');});
 </script>'''
@@ -1916,6 +1920,18 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                             </tr>
                             """ for n in nodes_json])}
                         </tbody>
+                        <tfoot id="efficiencyTableFoot">
+                            <tr>
+                                <td><strong>&Sigma; Total (Filtered)</strong></td>
+                                <td id="sumEffNodeCount">{len(nodes)} nodes</td>
+                                <td id="sumEffCpuReq">{sum(n['cpu_requested'] for n in nodes_json):.2f} cores</td>
+                                <td id="sumEffCpuActual">{sum(n['cpu_actual'] for n in nodes_json):.2f} cores</td>
+                                <td>-</td>
+                                <td id="sumEffMemReq">{sum(n['mem_requested'] for n in nodes_json):.1f} GiB</td>
+                                <td id="sumEffMemActual">{sum(n['mem_actual'] for n in nodes_json):.1f} GiB</td>
+                                <td>-</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -1989,6 +2005,15 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                             </tr>
                             """ for n in nodes_json])}
                         </tbody>
+                        <tfoot id="workloadTableFoot">
+                            <tr>
+                                <td><strong>&Sigma; Total (Filtered)</strong></td>
+                                <td id="sumWlNodeCount">{len(nodes)} nodes</td>
+                                <td id="sumWlPodCount">{sum(n['pod_count'] for n in nodes_json)}</td>
+                                <td id="sumWlPodCapacity">{sum(n['pod_capacity'] for n in nodes_json)}</td>
+                                <td>-</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -2442,11 +2467,13 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                     // Update efficiency tab cards and charts
                     if (tableId === 'efficiencyTable') {{
                         updateEfficiencyTabForFilter(filter);
+                        updateEfficiencyTableSumRow(filter);
                     }}
                     
                     // Update workloads tab charts
                     if (tableId === 'workloadTable') {{
                         updateWorkloadsTabForFilter(filter);
+                        updateWorkloadTableSumRow(filter);
                     }}
                 }}
             }});
@@ -2472,6 +2499,30 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
             document.getElementById('sumMemRequested').textContent = memRequested.toFixed(1);
             document.getElementById('sumMemActual').textContent = memActual.toFixed(1);
             document.getElementById('sumPods').textContent = pods;
+        }}
+        
+        // Function to update Pods per Node sum row (#11)
+        function updateWorkloadTableSumRow(filter) {{
+            const filteredNodes = filter === 'all' ? nodesData : nodesData.filter(n => n.role === filter);
+            const podCount = filteredNodes.reduce((s, n) => s + n.pod_count, 0);
+            const podCap = filteredNodes.reduce((s, n) => s + (n.pod_capacity || 0), 0);
+            document.getElementById('sumWlNodeCount').textContent = filteredNodes.length + ' nodes';
+            document.getElementById('sumWlPodCount').textContent = podCount;
+            document.getElementById('sumWlPodCapacity').textContent = podCap;
+        }}
+        
+        // Function to update Efficiency table sum row (#12)
+        function updateEfficiencyTableSumRow(filter) {{
+            const filteredNodes = filter === 'all' ? nodesData : nodesData.filter(n => n.role === filter);
+            const cpuReq = filteredNodes.reduce((s, n) => s + n.cpu_requested, 0);
+            const cpuAct = filteredNodes.reduce((s, n) => s + n.cpu_actual, 0);
+            const memReq = filteredNodes.reduce((s, n) => s + n.mem_requested, 0);
+            const memAct = filteredNodes.reduce((s, n) => s + n.mem_actual, 0);
+            document.getElementById('sumEffNodeCount').textContent = filteredNodes.length + ' nodes';
+            document.getElementById('sumEffCpuReq').textContent = cpuReq.toFixed(2) + ' cores';
+            document.getElementById('sumEffCpuActual').textContent = cpuAct.toFixed(2) + ' cores';
+            document.getElementById('sumEffMemReq').textContent = memReq.toFixed(1) + ' GiB';
+            document.getElementById('sumEffMemActual').textContent = memAct.toFixed(1) + ' GiB';
         }}
         
         // Function to update efficiency tab when filter changes
