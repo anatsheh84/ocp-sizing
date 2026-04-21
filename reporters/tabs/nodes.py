@@ -11,6 +11,7 @@ Extracted from html_reporter.py in Phase 5e of the refactor.
 """
 
 from reporters.report_context import ReportContext
+from reporters.components import role_filter_bar
 
 
 def build(ctx: ReportContext) -> str:
@@ -25,19 +26,7 @@ def build(ctx: ReportContext) -> str:
                 <p class="section-subtitle">Detailed view of all cluster nodes with resource allocation</p>
             </div>
             
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <span class="filter-label">Filter by Role:</span>
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all" data-table="nodesTable">
-                        All <span class="filter-count">{len(nodes)}</span>
-                    </button>
-                    {'<button class="filter-btn control-plane" data-filter="control-plane" data-table="nodesTable">🎛️ Control Plane <span class="filter-count">' + str(role_summaries.get("control-plane", {}).get("count", 0)) + '</span></button>' if 'control-plane' in role_summaries else ''}
-                    {'<button class="filter-btn infra" data-filter="infra" data-table="nodesTable">🔧 Infra <span class="filter-count">' + str(role_summaries.get("infra", {}).get("count", 0)) + '</span></button>' if 'infra' in role_summaries else ''}
-                    {'<button class="filter-btn storage" data-filter="storage" data-table="nodesTable">💾 Storage <span class="filter-count">' + str(role_summaries.get("storage", {}).get("count", 0)) + '</span></button>' if 'storage' in role_summaries else ''}
-                    {'<button class="filter-btn worker" data-filter="worker" data-table="nodesTable">⚙️ Workers <span class="filter-count">' + str(role_summaries.get("worker", {}).get("count", 0)) + '</span></button>' if 'worker' in role_summaries else ''}
-                </div>
-            </div>
+{role_filter_bar(ctx, 'nodesTable')}
             
             <div class="export-buttons">
                 <button class="btn btn-primary" onclick="exportTableToCSV('nodesTable', 'nodes_inventory.csv')">

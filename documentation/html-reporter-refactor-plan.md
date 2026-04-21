@@ -601,7 +601,7 @@ def build(ctx: ReportContext) -> str:
 | 5f | Tab: efficiency | 0.5 | ✅ done | `refactor/html-reporter-phase-5f-efficiency` → `refactoring` |
 | 5g | Tab: recommendations | 0.5 | ✅ done | `refactor/html-reporter-phase-5g-recommendations` → `refactoring` |
 | 5h | Tab: checklist | 0.5 | ✅ done | `refactor/html-reporter-phase-5h-checklist` → `refactoring` |
-| 6 | Common components | 1 | ☐ | |
+| 6 | Common components | 1 | ✅ done | `refactor/html-reporter-phase-6-components` → `refactoring` |
 | 7 | Cleanup + docs | 0.5 | ☐ | |
 
 **Total: ~9–10 focused sessions.**
