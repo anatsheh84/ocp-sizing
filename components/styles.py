@@ -6,9 +6,7 @@ Returns CSS as a string to be embedded in the HTML.
 """
 
 
-def get_styles():
-    """Return complete CSS stylesheet as string."""
-    return '''
+STYLES = '''
 * {
     margin: 0;
     padding: 0;
@@ -948,9 +946,13 @@ tr:hover {
 }
 '''
 
+def get_styles() -> str:
+    """Return complete CSS stylesheet (thin wrapper kept for backwards-compatible callers)."""
+    return STYLES
+
+
 
 # For testing
 if __name__ == '__main__':
-    css = get_styles()
-    print(f"CSS generated: {len(css)} characters")
-    print(f"Approximate size: {len(css) / 1024:.1f} KB")
+    print(f"CSS generated: {len(STYLES)} characters")
+    print(f"Approximate size: {len(STYLES) / 1024:.1f} KB")

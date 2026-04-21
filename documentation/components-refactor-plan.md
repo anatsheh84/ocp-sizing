@@ -167,7 +167,7 @@ Each exports a string constant. `components/scripts.py` concatenates them in ord
 | Phase | Description | Est. sessions | Status |
 |---|---|---:|---|
 | 0 | RHV golden harness (`generate_rhv_golden.py` + extended `compare.sh`) | 0.5 | ✅ done |
-| 1 | `styles.py` → `STYLES` constant | 0.5 | ☐ |
+| 1 | `styles.py` → `STYLES` constant | 0.5 | ✅ done |
 | 2 | `scripts.py` → `SCRIPT_BODY` + `build_data_prelude()` | 1 | ☐ |
 | 3 | JS split into `scripts_js/` subpackage (optional) | 1 | ☐ (decide after 2) |
 

@@ -5,7 +5,7 @@ Contains all modular components for the Virtualization Migration Dashboard gener
 Supports multiple source platforms: RHV, VMware, and future sources.
 """
 
-from .styles import get_styles
+from .styles import STYLES, get_styles
 from .base import (
     get_html_head,
     get_header,
@@ -29,6 +29,7 @@ from .scripts import generate_scripts, collect_chart_configs
 
 __all__ = [
     'get_styles',
+    'STYLES',
     'get_base_start',
     'get_base_end',
     'wrap_tab_content',
