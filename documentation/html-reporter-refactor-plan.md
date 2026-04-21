@@ -589,7 +589,7 @@ def build(ctx: ReportContext) -> str:
 | Phase | Description | Est. sessions | Status | Branch merged |
 |---|---|---|---|---|
 | 0 | Golden file capture | 0.25 | ✅ done | n/a (artifacts in `/Users/aelnatsh/Lab/refactor-goldens/`) |
-| 1 | CSS → `styles.py` | 1 | ☐ | |
+| 1 | CSS → `styles.py` | 1 | ✅ done | `refactor/html-reporter-phase-1-styles` → `refactoring` |
 | 2 | JS → `scripts.py` | 1 | ☐ | |
 | 3 | `ReportContext` dataclass | 1 | ☐ | |
 | 4 | Layout shell | 1 | ☐ | |
