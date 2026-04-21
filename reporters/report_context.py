@@ -14,9 +14,10 @@ include_recommendations) are preserved on the context alongside the
 derived view-models (nodes_json, sorted_ns, pvs_json, role_summaries,
 etc.) so tab modules don't need to reach around the context for anything.
 
-The pre-rendered HTML fragments (workload_inventory_html, script_body_html)
-also live on the context. This keeps the orchestrator (html_reporter.py)
-as a pure assembly step with no computation of its own.
+The pre-rendered HTML fragment (script_body_html) also lives on the
+context. Phase 5a moved the workload-inventory tab's pre-render OUT of
+the context: it is now computed by html_reporter.py via
+tabs.workload_inventory.build(ctx) alongside the other tab builders.
 """
 
 from dataclasses import dataclass, field
@@ -49,7 +50,6 @@ class ReportContext:
     # Pre-rendered HTML fragments (tabs or script body that must be
     # computed outside the main f-string, since you can't call a function
     # inside an f-string that's being concatenated at render time).
-    workload_inventory_html: str
     script_body_html: str
 
 
@@ -66,9 +66,9 @@ def build_context(nodes: List[NodeData],
     fragments come from the same helpers that html_reporter.py used
     previously, so swapping this in is byte-identical.
     """
-    # Import here to avoid a circular import at module load time
-    # (scripts.py -> nothing; html_reporter.py -> report_context -> ...).
-    from reporters.html_reporter import _generate_workload_inventory_tab
+    # Import here to avoid a circular import at module load time.
+    # (Phase 5a removed the _generate_workload_inventory_tab lazy import
+    # when that function moved to reporters.tabs.workload_inventory.)
     from reporters.scripts import build_script_body
 
     # --- nodes_json: per-node dict used by JS and the Nodes tab table ---
@@ -152,7 +152,6 @@ def build_context(nodes: List[NodeData],
             }
 
     # --- pre-rendered HTML fragments ---
-    workload_inventory_html = _generate_workload_inventory_tab(workloads or {})
     script_body_html = build_script_body(nodes_json, sorted_ns, summary)
 
     return ReportContext(
@@ -168,6 +167,5 @@ def build_context(nodes: List[NodeData],
         pvs_json=pvs_json,
         nodes_by_role=nodes_by_role,
         role_summaries=role_summaries,
-        workload_inventory_html=workload_inventory_html,
         script_body_html=script_body_html,
     )

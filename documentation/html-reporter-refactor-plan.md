@@ -593,7 +593,7 @@ def build(ctx: ReportContext) -> str:
 | 2 | JS → `scripts.py` | 1 | ✅ done | `refactor/html-reporter-phase-2-scripts` → `refactoring` |
 | 3 | `ReportContext` dataclass | 1 | ✅ done | `refactor/html-reporter-phase-3-context` → `refactoring` |
 | 4 | Layout shell | 1 | ✅ done | `refactor/html-reporter-phase-4-layout` → `refactoring` |
-| 5a | Tab: workload-inventory (move) | 0.25 | ☐ | |
+| 5a | Tab: workload-inventory (move) | 0.25 | ✅ done | `refactor/html-reporter-phase-5a-workload-inventory` → `refactoring` |
 | 5b | Tab: storage | 0.25 | ☐ | |
 | 5c | Tab: overview | 0.5 | ☐ | |
 | 5d | Tab: workloads | 0.5 | ☐ | |
