@@ -1,6 +1,10 @@
 # `html_reporter.py` Refactor Plan
 
-**Status:** Planning (not started)
+**Status:** ✅ **COMPLETE** (April 2026) — all 8 phases merged into `refactoring` and landed on `main`.
+**Final result:** `html_reporter.py` went from 3,001 lines to 92 lines (97% reduction). Every phase preserved byte-identical HTML output after timestamp normalization. See the phase tracker below for details.
+
+For the present-tense architecture reference of the resulting `reporters/` module, see [`reporters-architecture.md`](./reporters-architecture.md).
+
 **Created:** April 2026
 **Owner:** Ziko
 
