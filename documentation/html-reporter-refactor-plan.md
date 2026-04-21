@@ -598,7 +598,7 @@ def build(ctx: ReportContext) -> str:
 | 5c | Tab: overview | 0.5 | ✅ done | `refactor/html-reporter-phase-5c-overview` → `refactoring` |
 | 5d | Tab: workloads | 0.5 | ✅ done | `refactor/html-reporter-phase-5d-workloads` → `refactoring` |
 | 5e | Tab: nodes | 0.5 | ✅ done | `refactor/html-reporter-phase-5e-nodes` → `refactoring` |
-| 5f | Tab: efficiency | 0.5 | ☐ | |
+| 5f | Tab: efficiency | 0.5 | ✅ done | `refactor/html-reporter-phase-5f-efficiency` → `refactoring` |
 | 5g | Tab: recommendations | 0.5 | ☐ | |
 | 5h | Tab: checklist | 0.5 | ☐ | |
 | 6 | Common components | 1 | ☐ | |
