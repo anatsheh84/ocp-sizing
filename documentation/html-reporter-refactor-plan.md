@@ -596,7 +596,7 @@ def build(ctx: ReportContext) -> str:
 | 5a | Tab: workload-inventory (move) | 0.25 | ✅ done | `refactor/html-reporter-phase-5a-workload-inventory` → `refactoring` |
 | 5b | Tab: storage | 0.25 | ✅ done | `refactor/html-reporter-phase-5b-storage` → `refactoring` |
 | 5c | Tab: overview | 0.5 | ✅ done | `refactor/html-reporter-phase-5c-overview` → `refactoring` |
-| 5d | Tab: workloads | 0.5 | ☐ | |
+| 5d | Tab: workloads | 0.5 | ✅ done | `refactor/html-reporter-phase-5d-workloads` → `refactoring` |
 | 5e | Tab: nodes | 0.5 | ☐ | |
 | 5f | Tab: efficiency | 0.5 | ☐ | |
 | 5g | Tab: recommendations | 0.5 | ☐ | |
