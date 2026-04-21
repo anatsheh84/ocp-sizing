@@ -68,17 +68,28 @@ Validates against OpenShift + Naba-Apr2026 golden files.
 ```
 
 ### Per-phase validation loop
-Every phase must end with the report rendering **visually and functionally identical**
-to before (whitespace differences are acceptable). The loop is:
+Every phase must end with the report rendering **byte-identical** to the
+pre-refactor goldens after timestamp normalization. Since `html_reporter.py`
+embeds `Generated: YYYY-MM-DD HH:MM` at line ~1485, the regression harness
+strips that line before hashing/diffing. The acceptance bar is therefore:
+
+    normalized sha256(post) == normalized sha256(pre)
+
+which is stronger than "whitespace-only diff" and catches any semantic change,
+including single-character typos, reordered attributes, or silently dropped
+content.
+
+The loop is:
 
 1. `python3 -c "import py_compile; py_compile.compile('reporters/html_reporter.py', doraise=True)"`
-2. Run the same CLI invocation used to produce the golden file
-3. `diff -w <golden>.html <new>.html` — only whitespace diffs are acceptable
-4. Open in browser, click every tab, verify filters and sum rows still work
+2. `/Users/aelnatsh/Lab/refactor-goldens/compare.sh -w` — must print `IDENTICAL ✓` twice
+3. Optionally `compare.sh --checksum` to confirm normalized SHAs match
+4. Open both generated HTMLs in a browser, click every tab, verify filters and sum rows
 5. Only then: `git commit`
 
-Repeat for both golden datasets (OpenShift 4-file and Naba-Apr2026 3-file) to
-cover full-feature and optional-file paths.
+Both datasets (OpenShift 4-file + Naba-Apr2026 3-file) are covered by a single
+`compare.sh` run, so the full-feature and optional-file code paths both gate
+the commit.
 
 ### Rollback
 Each phase is a single branch. If validation fails and the fix isn't obvious:
@@ -89,44 +100,70 @@ Each phase is a single branch. If validation fails and the fix isn't obvious:
 
 ## Phase 0 — Prep: generate golden files
 
+**Status: COMPLETE (April 2026)**
+
 **Goal:** capture known-good report output for regression comparison.
 
-**Branch:** none (prep only, output goes to a gitignored location)
+**What was built:**
 
-**Steps:**
-1. Pick a stable location outside the repo for goldens, e.g.
-   `/Users/aelnatsh/Lab/refactor-goldens/`
-2. Generate reports from both datasets using the **current** `main` HEAD:
-   - OpenShift (full 4 files) → `goldens/openshift-pre.html`
-   - Naba-Apr2026 (3 files: describe + top-nodes + pods-top) → `goldens/naba-pre.html`
-3. Record the exact CLI commands used in this doc (below) so every phase
-   regenerates with the same inputs.
-4. Optional but recommended: also save a `goldens/openshift-pre-normalized.html`
-   produced by `python3 -c "import sys,re; print(re.sub(r'\s+',' ',sys.stdin.read()))" <
-   goldens/openshift-pre.html` to make whitespace-insensitive diffs easy.
+Location: `/Users/aelnatsh/Lab/refactor-goldens/` (outside the repo, intentionally
+not version-controlled — these are large HTML artifacts regenerated on demand).
 
-**Golden-generation commands** (to be filled in on first use):
+1. **`generate_golden.py`** — standalone harness that replicates `app.py`'s
+   pipeline exactly. Not using the repo CLI `generate_report.py` because it is
+   stale: it neither accepts `--pods-top` nor passes `workloads` to
+   `generate_html_report`, which would omit the entire Workload Inventory tab
+   from the golden and lose regression coverage for ~195 lines of code. The
+   harness imports from the live repo, so it tracks whatever HEAD is checked out.
+
+2. **`openshift-pre.html`** (240 KB, 3177 lines)
+   - Source: `/Users/aelnatsh/Downloads/Data/OpenShift/` (all 4 files)
+   - 5 nodes, 255 pods, 14 PVs, 255 pods-top entries (100% match rate)
+   - Exercises every tab including recommendations, checklist, storage
+
+3. **`naba-pre.html`** (169 KB, 3384 lines)
+   - Source: `/Users/aelnatsh/Downloads/Data/Naba-Apr2026/` (3 files, no PV)
+   - 11 nodes, 100 pods, 100 pods-top entries
+   - Exercises the "no PV data" empty state on the Storage tab
+   - Exercises the high OS-overhead scenario (80% overhead on this cluster)
+
+4. **`compare.sh`** — regression harness. Regenerates `*-post.html` from the
+   current repo HEAD, then diffs against `*-pre.html` with the `Generated:`
+   timestamp line normalized out. Acceptance bar: `IDENTICAL ✓` on both.
+   Flags: `-w` (whitespace-insensitive, primary check), `--checksum` (print
+   raw + normalized sha256).
+
+5. **`goldens-checksums-pre.txt`** — raw sha256 of both pre files, for
+   tamper detection.
+
+**Key finding during Phase 0:** the HTML output is **fully deterministic**
+apart from the minute-precision timestamp. After normalization the sha256
+is byte-stable across regenerations, which means the acceptance criterion
+for every subsequent phase is the strongest possible:
+
+    normalized sha256(post) == normalized sha256(pre)
+
+This was verified by generating pre files at 18:38, regenerating post files
+at 18:43 (different minute), confirming raw SHAs differ and normalized SHAs
+match exactly.
+
+**Cross-minute verification (recorded here for future reference):**
+- `openshift` normalized SHA: `e8f8cd58b9aff74ebea860b80a5c88e420410396e787c5142e647a06ab67b250`
+- `naba` normalized SHA: `d85ca1b35ca775b8bcf03719ce8e83ff3155f65f7e3919824364781c090fa237`
+
+After each future phase, these normalized SHAs must still match.
+
+**Usage (for every subsequent phase):**
 ```bash
-# OpenShift dataset (all 4 files)
-python3 generate_report.py \
-    -n /Users/aelnatsh/Downloads/Data/OpenShift/<nodes-describe.txt> \
-    -t /Users/aelnatsh/Downloads/Data/OpenShift/<nodes-top.txt> \
-    -p /Users/aelnatsh/Downloads/Data/OpenShift/<pvs.txt> \
-    --pods-top /Users/aelnatsh/Downloads/Data/OpenShift/<pods-top.txt> \
-    -o /Users/aelnatsh/Lab/refactor-goldens/openshift-pre.html
+# Fast regression check
+/Users/aelnatsh/Lab/refactor-goldens/compare.sh -w
 
-# Naba-Apr2026 dataset (3 files, no PV)
-python3 generate_report.py \
-    -n /Users/aelnatsh/Downloads/Data/Naba-Apr2026/<nodes-describe.txt> \
-    -t /Users/aelnatsh/Downloads/Data/Naba-Apr2026/<nodes-top.txt> \
-    --pods-top /Users/aelnatsh/Downloads/Data/Naba-Apr2026/<pods-top.txt> \
-    -o /Users/aelnatsh/Lab/refactor-goldens/naba-pre.html
+# Checksum audit
+/Users/aelnatsh/Lab/refactor-goldens/compare.sh --checksum
 ```
-(Update exact flag names and filenames from current `generate_report.py` on first run.)
 
-**Deliverable:** two golden HTML files + commands recorded in this doc.
-
-**Effort:** ~15 minutes.
+**Deliverable:** Phase 0 artifacts listed above. Branch `refactoring` created
+and tracking this plan doc. Ready to start Phase 1.
 
 
 ---
@@ -551,7 +588,7 @@ def build(ctx: ReportContext) -> str:
 
 | Phase | Description | Est. sessions | Status | Branch merged |
 |---|---|---|---|---|
-| 0 | Golden file capture | 0.25 | ☐ | n/a |
+| 0 | Golden file capture | 0.25 | ✅ done | n/a (artifacts in `/Users/aelnatsh/Lab/refactor-goldens/`) |
 | 1 | CSS → `styles.py` | 1 | ☐ | |
 | 2 | JS → `scripts.py` | 1 | ☐ | |
 | 3 | `ReportContext` dataclass | 1 | ☐ | |
