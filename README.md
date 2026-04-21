@@ -90,26 +90,50 @@ python3 generate_report.py -d nodes_describe.txt -t nodes_top.txt -o my_report.h
 
 ```
 ocp-sizing-modular/
-├── app.py                       # Flask web interface
-├── generate_report.py           # CLI orchestrator
-├── Dockerfile                   # Container image (Python 3.12, gunicorn)
+├── app.py                            # Flask web interface
+├── generate_report.py                # CLI orchestrator
+├── Dockerfile                        # Container image (Python 3.12, gunicorn)
 ├── models/
-│   └── __init__.py              # Data classes (NodeData, ClusterSummary, etc.)
+│   └── __init__.py                   # Data classes (NodeData, ClusterSummary, …)
 ├── parsers/
-│   ├── nodes_parser.py          # Parse kubectl describe nodes
-│   ├── metrics_parser.py        # Parse kubectl top nodes
-│   ├── storage_parser.py        # Parse kubectl get pv
-│   └── utils.py                 # Unit conversion helpers
+│   ├── nodes_parser.py               # Parse kubectl describe nodes
+│   ├── metrics_parser.py             # Parse kubectl top nodes
+│   ├── pods_metrics_parser.py        # Parse kubectl top pods -A (optional)
+│   ├── storage_parser.py             # Parse kubectl get pv
+│   └── utils.py                      # Unit conversion helpers
 ├── analyzers/
-│   ├── cluster_analyzer.py      # Node categorization, resource aggregation
-│   └── recommendation_engine.py # OCP sizing recommendations
+│   ├── cluster_analyzer.py           # Node categorization, resource aggregation
+│   ├── recommendation_engine.py      # OCP sizing recommendations
+│   └── workload_analyzer.py          # Workload inventory + pod/namespace stats
 ├── reporters/
-│   └── html_reporter.py         # Interactive HTML dashboard
-└── openshift/                   # OpenShift deployment manifests
+│   ├── html_reporter.py              # Orchestrator (≈90 lines)
+│   ├── report_context.py             # ReportContext dataclass + build_context()
+│   ├── layout.py                     # Outer HTML shell (DOCTYPE, head, nav, footer)
+│   ├── styles.py                     # Static CSS
+│   ├── scripts.py                    # Static JS + build_script_body()
+│   ├── components.py                 # Shared UI fragments (role_filter_bar)
+│   ├── pdf_exporter.py               # Optional PDF export via playwright
+│   └── tabs/                         # One module per report tab
+│       ├── overview.py
+│       ├── nodes.py
+│       ├── efficiency.py
+│       ├── workloads.py
+│       ├── workload_inventory.py
+│       ├── recommendations.py
+│       ├── checklist.py
+│       └── storage.py
+├── documentation/
+│   ├── reporters-architecture.md     # Developer reference for reporters/
+│   └── html-reporter-refactor-plan.md
+└── openshift/                        # OpenShift deployment manifests
     ├── buildconfig.yaml
     ├── deployment.yaml
     └── service-route.yaml
 ```
+
+For developer details on the `reporters/` module layout — call graph, tab contract,
+and the "adding a new tab" recipe — see
+[`documentation/reporters-architecture.md`](documentation/reporters-architecture.md).
 
 ## License
 
