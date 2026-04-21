@@ -7,9 +7,9 @@ Supports multiple source platforms (RHV, VMware, etc.)
 """
 
 try:
-    from .styles import get_styles
+    from .styles import STYLES
 except ImportError:
-    from styles import get_styles
+    from styles import STYLES
 
 
 # Source platform display names
@@ -34,7 +34,7 @@ def get_html_head(data):
     <title>{title}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-{get_styles()}
+{STYLES}
     </style>
 </head>
 '''
