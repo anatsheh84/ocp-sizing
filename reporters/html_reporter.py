@@ -21,6 +21,7 @@ from models import NodeData, ClusterSummary, PersistentVolume
 from analyzers.cluster_analyzer import ClusterAnalyzer
 from reporters.styles import STYLES
 from reporters.scripts import build_script_body
+from reporters.report_context import build_context
 
 
 def _generate_workload_inventory_tab(workloads):
@@ -227,93 +228,20 @@ def generate_html_report(nodes: List[NodeData], summary: ClusterSummary,
                         workloads: Dict = None) -> str:
     """Generate interactive HTML dashboard"""
     
-    # Prepare data for charts
-    nodes_json = []
-    for node in nodes:
-        role = ClusterAnalyzer.categorize_node_role(node)
-        cpu_req_pct = (node.allocated_requests.cpu / node.allocatable.cpu * 100) if node.allocatable.cpu > 0 else 0
-        mem_req_pct = (node.allocated_requests.memory / node.allocatable.memory * 100) if node.allocatable.memory > 0 else 0
-        cpu_actual_pct = (node.actual_usage.cpu / node.allocatable.cpu * 100) if node.allocatable.cpu > 0 else 0
-        mem_actual_pct = (node.actual_usage.memory / node.allocatable.memory * 100) if node.allocatable.memory > 0 else 0
-        
-        nodes_json.append({
-            'name': node.name,
-            'role': role,
-            'roles': ', '.join(node.roles),
-            'cpu_capacity': round(node.capacity.cpu / 1000, 1),
-            'cpu_allocatable': round(node.allocatable.cpu / 1000, 1),
-            'cpu_requested': round(node.allocated_requests.cpu / 1000, 2),
-            'cpu_actual': round(node.actual_usage.cpu / 1000, 2),
-            'cpu_req_pct': round(cpu_req_pct, 1),
-            'cpu_actual_pct': round(cpu_actual_pct, 1),
-            'mem_capacity': round(node.capacity.memory / 1024, 1),
-            'mem_allocatable': round(node.allocatable.memory / 1024, 1),
-            'mem_requested': round(node.allocated_requests.memory / 1024, 1),
-            'mem_actual': round(node.actual_usage.memory / 1024, 1),
-            'mem_req_pct': round(mem_req_pct, 1),
-            'mem_actual_pct': round(mem_actual_pct, 1),
-            'pod_count': node.pod_count,
-            'pod_capacity': node.capacity.pods,
-            'is_ready': node.is_ready,
-            'is_schedulable': node.is_schedulable,
-            'taints': ', '.join(node.taints) if node.taints else 'None',
-            'instance_type': node.instance_type or 'N/A',
-            'ip_address': node.ip_address,
-            'kubelet_version': node.system_info.kubelet_version,
-            'os_image': node.system_info.os_image,
-            'container_runtime': node.system_info.container_runtime,
-            'pods': [{'namespace': p.namespace, 'name': p.name} for p in node.pods]
-        })
-    
-    # Namespace pod distribution - ALL namespaces
-    namespace_pods = {}
-    for node in nodes:
-        for pod in node.pods:
-            ns = pod.namespace
-            namespace_pods[ns] = namespace_pods.get(ns, 0) + 1
-    
-    # Sort by count (all namespaces)
-    sorted_ns = sorted(namespace_pods.items(), key=lambda x: x[1], reverse=True)
-    
-    # PV data
-    pvs_json = []
-    for pv in pvs:
-        pvs_json.append({
-            'name': pv.name,
-            'capacity': round(pv.capacity, 2),
-            'access_modes': pv.access_modes,
-            'reclaim_policy': pv.reclaim_policy,
-            'status': pv.status,
-            'claim': pv.claim or '-',
-            'storage_class': pv.storage_class or '-'
-        })
-    
-    # Group nodes by role for architecture diagram
-    nodes_by_role = {}
-    for node in nodes:
-        role = ClusterAnalyzer.categorize_node_role(node)
-        if role not in nodes_by_role:
-            nodes_by_role[role] = []
-        nodes_by_role[role].append({
-            'name': node.name.split('.')[0],
-            'cpu': round(node.capacity.cpu / 1000, 0),
-            'memory': round(node.capacity.memory / 1024, 0)
-        })
-    
-    # Calculate role summaries for architecture diagram
-    role_summaries = {}
-    for role, role_nodes in nodes_by_role.items():
-        if role_nodes:
-            role_summaries[role] = {
-                'count': len(role_nodes),
-                'cpu': role_nodes[0]['cpu'],  # Assuming same specs
-                'memory': role_nodes[0]['memory'],
-                'nodes': role_nodes
-            }
-    
-    # Pre-compute workload inventory tab HTML (can't call functions inside f-string)
-    workload_inventory_html = _generate_workload_inventory_tab(workloads or {})
-    script_body_html = build_script_body(nodes_json, sorted_ns, summary)
+    # Build typed view-model (Phase 3: ReportContext).
+    # The main f-string below still references the old local names;
+    # Phase 5 will migrate those to ctx.X as each tab module is extracted.
+    ctx = build_context(nodes, summary, recommendations, pvs,
+                        include_recommendations=include_recommendations,
+                        workloads=workloads)
+    nodes_json = ctx.nodes_json
+    namespace_pods = ctx.namespace_pods
+    sorted_ns = ctx.sorted_ns
+    pvs_json = ctx.pvs_json
+    nodes_by_role = ctx.nodes_by_role
+    role_summaries = ctx.role_summaries
+    workload_inventory_html = ctx.workload_inventory_html
+    script_body_html = ctx.script_body_html
     
     html = f'''<!DOCTYPE html>
 <html lang="en">
